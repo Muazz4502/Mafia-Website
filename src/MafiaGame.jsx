@@ -63,9 +63,9 @@ const CSS = `
 input:focus,textarea:focus{outline:none;border-color:var(--bh) !important}
 button{cursor:pointer;border:none;background:none;font-family:var(--fm);transition:all 0.25s cubic-bezier(0.22,1,0.36,1)}
 button:hover{transform:translateY(-1px)}button:active{transform:translateY(0) scale(0.97)}
-html,body{overflow-x:hidden;width:100%}
+html,body,#root{overflow-x:hidden;width:100%;max-width:100vw;position:relative}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:3px}
-.wrap{position:relative;z-index:1;max-width:940px;margin:0 auto;padding:28px 28px 80px}
+.wrap{position:relative;z-index:1;max-width:940px;margin:0 auto;padding:28px 28px 80px;width:100%;box-sizing:border-box}
 .lobby-grid{display:grid;grid-template-columns:320px 1fr;gap:32px}
 .game-grid{display:grid;grid-template-columns:1fr 280px;gap:22px}
 .home-title{font-family:var(--fd);font-size:72px;font-weight:400;color:var(--t);letter-spacing:2px;line-height:1}
@@ -124,8 +124,8 @@ function Orbs({variant}){
     night:  [{c:"rgba(30,30,140,0.15)",sz:600,x:"30%",y:"25%",a:"orbFloat1 18s ease infinite"},{c:"rgba(80,20,120,0.1)",sz:400,x:"70%",y:"70%",a:"orbFloat2 22s ease infinite"}],
     day:    [{c:"rgba(140,120,20,0.1)",sz:500,x:"60%",y:"20%",a:"orbFloat2 20s ease infinite"},{c:"rgba(120,80,10,0.07)",sz:350,x:"25%",y:"65%",a:"orbFloat1 26s ease infinite"}],
   };
-  return <div style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",overflow:"hidden"}}>
-    {(configs[variant]||configs.home).map((o,i)=><div key={i} style={{position:"absolute",width:o.sz,height:o.sz,borderRadius:"50%",background:`radial-gradient(circle,${o.c},transparent 70%)`,left:o.x,top:o.y,animation:o.a,filter:"blur(60px)"}}/>)}
+  return <div style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",overflow:"hidden",width:"100vw",height:"100vh"}}>
+    {(configs[variant]||configs.home).map((o,i)=><div key={i} style={{position:"absolute",width:`min(${o.sz}px, 80vw)`,height:`min(${o.sz}px, 80vw)`,borderRadius:"50%",background:`radial-gradient(circle,${o.c},transparent 70%)`,left:o.x,top:o.y,animation:o.a,filter:"blur(60px)"}}/>)}
   </div>;
 }
 
@@ -254,7 +254,7 @@ export default function MafiaGame(){
 
   const sendChat=()=>{if(!chatInput.trim())return;setChatMessages(prev=>[...prev,{sender:playerName,text:chatInput,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}]);setChatInput("");};
 
-  const page={minHeight:"100vh",background:"var(--bg)",color:"var(--t)",fontFamily:"var(--fm)",position:"relative"};
+  const page={minHeight:"100vh",background:"var(--bg)",color:"var(--t)",fontFamily:"var(--fm)",position:"relative",overflowX:"hidden",width:"100%"};
   const inp={width:"100%",padding:"15px 20px",background:"rgba(255,255,255,0.03)",border:"1px solid var(--b)",borderRadius:14,color:"var(--t)",fontFamily:"var(--fm)",fontSize:13,transition:"border 0.3s"};
   const bigBtn={padding:"18px",background:"linear-gradient(135deg,#be123c,#9f1239)",borderRadius:14,color:"#fff",fontFamily:"var(--fd)",fontSize:20,boxShadow:"0 12px 40px rgba(190,18,60,0.25),inset 0 1px 0 rgba(255,255,255,0.1)",width:"100%"};
 
