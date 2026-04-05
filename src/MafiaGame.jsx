@@ -227,6 +227,11 @@ export default function MafiaGame(){
     if (phase && screen === "lobby") setScreen("game");
   }, [phase, screen]);
 
+  // Transition back to lobby when game is reset (Play Again)
+  useEffect(() => {
+    if (!phase && !winner && screen === "game" && roomCode) setScreen("lobby");
+  }, [phase, winner, screen, roomCode]);
+
   // Role reveal sync
   useEffect(() => {
     if (fbShowReveal) {
@@ -250,15 +255,18 @@ export default function MafiaGame(){
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
-  // Host auto-resolve: when all alive non-villager-role players have acted at night
+  // Host auto-resolve: night — when all alive players with night abilities have acted
+  const NO_NIGHT_ROLES = ["villager","mayor","survivor"];
   useEffect(() => {
     if (!isHost || phase !== "night" || !assignments) return;
     const aliveActionPlayers = Object.entries(assignments).filter(([, a]) => {
-      if (!a.alive) return false;
-      const r = a.role;
-      return r !== "villager" && r !== "mayor" && r !== "survivor";
+      return a.alive && !NO_NIGHT_ROLES.includes(a.role);
     });
-    if (aliveActionPlayers.length === 0) return;
+    // If no action roles alive (shouldn't happen normally), auto-resolve after short delay
+    if (aliveActionPlayers.length === 0) {
+      const timer = setTimeout(() => resolveNight(), 2000);
+      return () => clearTimeout(timer);
+    }
     const actedCount = Object.keys(nightActions).length;
     if (actedCount > 0 && actedCount >= aliveActionPlayers.length) {
       const timer = setTimeout(() => resolveNight(), 1500);
@@ -266,13 +274,16 @@ export default function MafiaGame(){
     }
   }, [isHost, phase, assignments, nightActions, resolveNight]);
 
-  // Host auto-resolve: when all alive players have voted during day
+  // Host auto-resolve: day — when all alive players have voted
+  // We count alive players who CAN vote (everyone alive)
   useEffect(() => {
     if (!isHost || phase !== "day" || !assignments) return;
     const aliveCount = Object.values(assignments).filter(a => a.alive).length;
     const voteCount = Object.keys(votes).length;
-    if (voteCount > 0 && voteCount >= aliveCount) {
-      const timer = setTimeout(() => resolveDay(), 1500);
+    // Resolve when we have a majority (more than half) or everyone voted
+    const majority = Math.floor(aliveCount / 2) + 1;
+    if (voteCount > 0 && voteCount >= majority) {
+      const timer = setTimeout(() => resolveDay(), 2000);
       return () => clearTimeout(timer);
     }
   }, [isHost, phase, assignments, votes, resolveDay]);
@@ -308,12 +319,14 @@ export default function MafiaGame(){
 
   const handleNightAction = async () => {
     if (!selectedTarget || actionSubmitted) return;
+    if (assignments[userId]?.alive === false) return;
     await submitNightAction(selectedTarget);
     setActionSubmitted(true);
   };
 
   const handleVote = async (targetId) => {
     if (voteSubmitted) return;
+    if (assignments[userId]?.alive === false) return;
     await submitVote(targetId);
     setVoteSubmitted(true);
   };
@@ -459,6 +472,10 @@ export default function MafiaGame(){
   if(screen==="game"){
     const rd = ROLES[myRole];
     const mtc = TC[rd?.team||"village"];
+    const myAssignment = assignments[userId];
+    const amAlive = myAssignment?.alive !== false;
+    const NO_NIGHT_ACTION = ["villager","mayor","survivor"];
+    const hasNightAction = myRole && !NO_NIGHT_ACTION.includes(myRole);
 
     return <div style={page}><style>{CSS}</style><Grain/><Orbs variant={phase||"night"}/>
 
@@ -502,21 +519,35 @@ export default function MafiaGame(){
           <div className="game-grid">
             <div>
               <Glass className="action-panel" style={{marginBottom:18}}>
-                <div className="action-title">{phase==="night"?"Choose your target":"Vote to eliminate"}</div>
-                <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",marginBottom:24}}>{
-                  actionSubmitted ? "Action submitted. Waiting for others..." :
-                  voteSubmitted ? "Vote submitted. Waiting for others..." :
-                  phase==="night"?"Select a player to use your ability on":"The village must decide who to send away"
-                }</div>
-                {!actionSubmitted && !voteSubmitted && <div className="target-grid">
-                  {alive.filter(p=>p.id!==userId).map((p,i)=>{const sel=selectedTarget===p.id;
-                    return <button key={p.id} onClick={()=>phase==="night"?setSelectedTarget(p.id):handleVote(p.id)}
-                      style={{padding:"18px 8px",background:sel?"var(--redbg)":"var(--sf)",border:`1px solid ${sel?"rgba(251,113,133,0.25)":"var(--b)"}`,borderRadius:16,color:"var(--t)",textAlign:"center",animation:`scaleUp 0.3s ease ${i*0.04}s both`}}>
-                      <div style={{display:"flex",justifyContent:"center",marginBottom:10}}><Avatar name={p.name} size={46} glow={sel?"var(--red)":null}/></div>
-                      <div style={{fontFamily:"var(--fd)",fontSize:12}}>{p.name}</div>
-                    </button>;})}
-                </div>}
-                {phase==="night"&&selectedTarget&&!actionSubmitted&&<button onClick={handleNightAction} style={{marginTop:20,width:"100%",padding:"15px",background:"linear-gradient(135deg,#1e40af,#2563eb)",borderRadius:13,color:"#fff",fontFamily:"var(--fm)",fontSize:11,fontWeight:600,letterSpacing:0.5,boxShadow:"0 10px 32px rgba(37,99,235,0.25),inset 0 1px 0 rgba(255,255,255,0.1)"}}>Confirm · {alive.find(p=>p.id===selectedTarget)?.name}</button>}
+                {!amAlive ? (
+                  <>
+                    <div className="action-title">You have been eliminated</div>
+                    <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",marginBottom:24}}>You are now spectating. Watch the game unfold.</div>
+                  </>
+                ) : phase==="night" && !hasNightAction ? (
+                  <>
+                    <div className="action-title">Night falls...</div>
+                    <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",marginBottom:24}}>You have no night ability. Wait for dawn.</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="action-title">{phase==="night"?"Choose your target":"Vote to eliminate"}</div>
+                    <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",marginBottom:24}}>{
+                      actionSubmitted ? "Action submitted. Waiting for others..." :
+                      voteSubmitted ? "Vote submitted. Waiting for others..." :
+                      phase==="night"?"Select a player to use your ability on":"The village must decide who to send away"
+                    }</div>
+                    {!actionSubmitted && !voteSubmitted && <div className="target-grid">
+                      {alive.filter(p=>p.id!==userId).map((p,i)=>{const sel=selectedTarget===p.id;
+                        return <button key={p.id} onClick={()=>phase==="night"?setSelectedTarget(p.id):handleVote(p.id)}
+                          style={{padding:"18px 8px",background:sel?"var(--redbg)":"var(--sf)",border:`1px solid ${sel?"rgba(251,113,133,0.25)":"var(--b)"}`,borderRadius:16,color:"var(--t)",textAlign:"center",animation:`scaleUp 0.3s ease ${i*0.04}s both`}}>
+                          <div style={{display:"flex",justifyContent:"center",marginBottom:10}}><Avatar name={p.name} size={46} glow={sel?"var(--red)":null}/></div>
+                          <div style={{fontFamily:"var(--fd)",fontSize:12}}>{p.name}</div>
+                        </button>;})}
+                    </div>}
+                    {phase==="night"&&selectedTarget&&!actionSubmitted&&<button onClick={handleNightAction} style={{marginTop:20,width:"100%",padding:"15px",background:"linear-gradient(135deg,#1e40af,#2563eb)",borderRadius:13,color:"#fff",fontFamily:"var(--fm)",fontSize:11,fontWeight:600,letterSpacing:0.5,boxShadow:"0 10px 32px rgba(37,99,235,0.25),inset 0 1px 0 rgba(255,255,255,0.1)"}}>Confirm · {alive.find(p=>p.id===selectedTarget)?.name}</button>}
+                  </>
+                )}
               </Glass>
 
               <Glass style={{padding:20,maxHeight:210,overflowY:"auto"}}>
