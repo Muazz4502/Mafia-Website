@@ -30,7 +30,14 @@ const TC = {
   mafia:   { p:"#fda4af", s:"#fb7185", bg:"rgba(251,113,133,0.06)", bdr:"rgba(251,113,133,0.18)" },
   neutral: { p:"#c4b5fd", s:"#a78bfa", bg:"rgba(167,139,250,0.06)", bdr:"rgba(167,139,250,0.18)" }
 };
-const genId = () => Math.random().toString(36).substr(2,6).toUpperCase();
+const CODE_ADJ = ["DARK","COLD","GRIM","SLY","BOLD","WILD","RED","MAD","SLY","DEEP","PALE","LOUD"];
+const CODE_NOUN = ["FOX","OWL","WOLF","FANG","MOON","CROW","DUSK","CLAW","BONE","RAGE","TOMB","FATE"];
+const genId = () => {
+  const adj = CODE_ADJ[Math.floor(Math.random()*CODE_ADJ.length)];
+  const noun = CODE_NOUN[Math.floor(Math.random()*CODE_NOUN.length)];
+  const num = Math.floor(Math.random()*90+10);
+  return `${adj}-${noun}-${num}`;
+};
 
 /* ─── GLOBAL CSS ─── */
 const CSS = `
