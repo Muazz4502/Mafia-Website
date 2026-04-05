@@ -30,13 +30,13 @@ const TC = {
   mafia:   { p:"#fda4af", s:"#fb7185", bg:"rgba(251,113,133,0.06)", bdr:"rgba(251,113,133,0.18)" },
   neutral: { p:"#c4b5fd", s:"#a78bfa", bg:"rgba(167,139,250,0.06)", bdr:"rgba(167,139,250,0.18)" }
 };
-const CODE_ADJ = ["DARK","COLD","GRIM","SLY","BOLD","WILD","RED","MAD","SLY","DEEP","PALE","LOUD"];
+const CODE_ADJ = ["DARK","COLD","GRIM","SLY","BOLD","WILD","RED","MAD","DEEP","PALE","LOUD"];
 const CODE_NOUN = ["FOX","OWL","WOLF","FANG","MOON","CROW","DUSK","CLAW","BONE","RAGE","TOMB","FATE"];
 const genId = () => {
   const adj = CODE_ADJ[Math.floor(Math.random()*CODE_ADJ.length)];
   const noun = CODE_NOUN[Math.floor(Math.random()*CODE_NOUN.length)];
   const num = Math.floor(Math.random()*90+10);
-  return `${adj}-${noun}-${num}`;
+  return `${adj}${noun}${num}`;
 };
 
 /* ─── GLOBAL CSS ─── */
@@ -276,7 +276,9 @@ export default function MafiaGame(){
         <p className="home-sub">Deception · Strategy · Survival</p>
       </div>
       <div style={{width:"100%",maxWidth:380,animation:"fadeUp 1s ease 0.15s both"}}>
-        <input type="text" placeholder="Enter your name" value={playerName} onChange={e=>setPlayerName(e.target.value)} style={{...inp,marginBottom:18,textAlign:"center",fontSize:15}}/>
+        <input type="text" placeholder="Enter your name" value={playerName} onChange={e=>setPlayerName(e.target.value)} style={{...inp,marginBottom:4,textAlign:"center",fontSize:15}} autoComplete="off" autoCorrect="off" spellCheck="false"/>
+        {!playerName.trim()&&<div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",textAlign:"center",marginBottom:12}}>Name required to create or join</div>}
+        {playerName.trim()&&<div style={{height:18,marginBottom:4}}/>}
         <button onClick={createRoom} style={bigBtn}>Create Room</button>
         <div style={{display:"flex",alignItems:"center",gap:16,margin:"22px 0"}}>
           <div style={{flex:1,height:1,background:"linear-gradient(90deg,transparent,var(--b),transparent)"}}/>
@@ -284,7 +286,7 @@ export default function MafiaGame(){
           <div style={{flex:1,height:1,background:"linear-gradient(90deg,transparent,var(--b),transparent)"}}/>
         </div>
         <div style={{display:"flex",gap:8}}>
-          <input type="text" placeholder="DARK-WOLF-42" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} maxLength={15} style={{...inp,textAlign:"center",letterSpacing:2,fontSize:14,fontWeight:600}}/>
+          <input type="text" placeholder="DARKWOLF42" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} maxLength={12} style={{...inp,textAlign:"center",letterSpacing:2,fontSize:14,fontWeight:600}} autoComplete="off" autoCorrect="off" autoCapitalize="characters" spellCheck="false"/>
           <button onClick={joinRoom} style={{padding:"15px 28px",background:"var(--s)",border:"1px solid var(--bh)",borderRadius:14,color:"var(--t)",fontSize:12,fontWeight:500}}>Join</button>
         </div>
       </div>
