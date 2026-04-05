@@ -85,7 +85,16 @@ html,body,#root{overflow-x:hidden;width:100%;max-width:100vw;position:relative}
 .action-title{font-family:var(--fd);font-size:22px;color:var(--t);margin-bottom:4px}
 .player-count-num{font-family:var(--fd);font-size:56px;color:var(--t);line-height:1}
 .preset-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.role-card{overflow:hidden}
+.role-card-top{display:flex;align-items:center;gap:10px}
+.role-card-desc{font-family:var(--fm);font-size:9px;color:var(--td);line-height:1.4;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.role-card-controls{display:flex;align-items:center;gap:3px;flex-shrink:0}
+.glass-pad{padding:22px 28px}
 @media(max-width:768px){
+  .role-card-top{flex-wrap:wrap;gap:8px}
+  .role-card-desc{white-space:normal;font-size:8px;line-height:1.5;-webkit-line-clamp:2;display:-webkit-box;-webkit-box-orient:vertical}
+  .role-card-controls{margin-left:auto}
+  .glass-pad{padding:16px 14px}
   .wrap{padding:16px 12px 40px}
   .lobby-grid{grid-template-columns:1fr !important;gap:20px}
   .game-grid{grid-template-columns:1fr !important;gap:16px}
@@ -174,19 +183,19 @@ function BalanceMeter({roles}){
 
 function RoleCard({role,count,onChange}){
   const tc=TC[role.team];
-  return <Glass style={{padding:"13px 16px",opacity:count>0?1:0.4,borderColor:count>0?tc.bdr:"var(--b)"}} glow={count>0?tc.s:null}>
-    <div style={{display:"flex",alignItems:"center",gap:12}}>
-      <div style={{width:40,height:40,borderRadius:11,background:count>0?tc.bg:"var(--sf)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,transition:"all 0.3s",flexShrink:0}}>{role.icon}</div>
+  return <Glass className="role-card" style={{padding:"13px 16px",opacity:count>0?1:0.4,borderColor:count>0?tc.bdr:"var(--b)"}} glow={count>0?tc.s:null}>
+    <div className="role-card-top">
+      <div style={{width:36,height:36,borderRadius:10,background:count>0?tc.bg:"var(--sf)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,transition:"all 0.3s",flexShrink:0}}>{role.icon}</div>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontFamily:"var(--fd)",fontSize:14,color:"var(--t)"}}>{role.name}</span>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+          <span style={{fontFamily:"var(--fd)",fontSize:13,color:"var(--t)"}}>{role.name}</span>
           <span style={{fontFamily:"var(--fm)",fontSize:7,color:tc.s,letterSpacing:2,textTransform:"uppercase"}}>{role.team}</span>
         </div>
-        <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--td)",lineHeight:1.4,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{role.description}</div>
+        <div className="role-card-desc">{role.description}</div>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
+      <div className="role-card-controls">
         <button onClick={()=>onChange(Math.max(0,count-1))} style={{width:28,height:28,borderRadius:8,border:"1px solid var(--b)",background:"var(--sf)",color:"var(--ts)",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-        <span style={{fontFamily:"var(--fm)",fontSize:15,color:"var(--t)",width:26,textAlign:"center",fontWeight:600}}>{count}</span>
+        <span style={{fontFamily:"var(--fm)",fontSize:15,color:"var(--t)",width:24,textAlign:"center",fontWeight:600}}>{count}</span>
         <button onClick={()=>onChange(count+1)} style={{width:28,height:28,borderRadius:8,border:`1px solid ${tc.bdr}`,background:tc.bg,color:tc.s,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
       </div>
     </div>
@@ -319,7 +328,7 @@ export default function MafiaGame(){
         {/* Setup */}
         <div>
           {/* Player Count */}
-          <Glass style={{padding:"22px 28px",marginBottom:18}}>
+          <Glass className="glass-pad" style={{marginBottom:18}}>
             <div style={{fontFamily:"var(--fm)",fontSize:8,color:"var(--tm)",letterSpacing:4,marginBottom:16}}>PLAYER COUNT</div>
             <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:24,marginBottom:16}}>
               <button onClick={()=>updateMaxPlayers(maxPlayers-1)} style={{width:44,height:44,borderRadius:13,border:"1px solid var(--b)",background:"var(--sf)",color:"var(--ts)",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
@@ -328,13 +337,13 @@ export default function MafiaGame(){
               </div>
               <button onClick={()=>updateMaxPlayers(maxPlayers+1)} style={{width:44,height:44,borderRadius:13,border:"1px solid rgba(251,113,133,0.2)",background:"var(--redbg)",color:"var(--red)",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
             </div>
-            <div style={{display:"flex",gap:5,justifyContent:"center",marginBottom:16}}>
-              {[5,6,7,8,10,12,15].map(n=><button key={n} onClick={()=>updateMaxPlayers(n)} style={{padding:"6px 12px",borderRadius:8,fontSize:10,fontWeight:maxPlayers===n?600:400,background:maxPlayers===n?"var(--redbg)":"var(--sf)",border:`1px solid ${maxPlayers===n?"rgba(251,113,133,0.2)":"var(--b)"}`,color:maxPlayers===n?"var(--red)":"var(--tm)"}}>{n}</button>)}
+            <div style={{display:"flex",gap:5,justifyContent:"center",marginBottom:16,flexWrap:"wrap"}}>
+              {[5,6,7,8,10,12,15].map(n=><button key={n} onClick={()=>updateMaxPlayers(n)} style={{padding:"6px 10px",borderRadius:8,fontSize:10,fontWeight:maxPlayers===n?600:400,background:maxPlayers===n?"var(--redbg)":"var(--sf)",border:`1px solid ${maxPlayers===n?"rgba(251,113,133,0.2)":"var(--b)"}`,color:maxPlayers===n?"var(--red)":"var(--tm)"}}>{n}</button>)}
             </div>
             <Divider/>
-            <div style={{display:"flex",justifyContent:"space-between",fontFamily:"var(--fm)",fontSize:9}}>
-              <span style={{color:"var(--td)"}}>Roles assigned: <span style={{color:assignedRoles>maxPlayers?"#fb7185":"#34d399",fontWeight:600}}>{assignedRoles}</span>/{maxPlayers}</span>
-              {remainingSlots>0&&<span style={{color:"#fbbf24"}}>+{remainingSlots} auto-villager{remainingSlots!==1?"s":""}</span>}
+            <div style={{display:"flex",justifyContent:"space-between",fontFamily:"var(--fm)",fontSize:9,flexWrap:"wrap",gap:4}}>
+              <span style={{color:"var(--td)"}}>Roles: <span style={{color:assignedRoles>maxPlayers?"#fb7185":"#34d399",fontWeight:600}}>{assignedRoles}</span>/{maxPlayers}</span>
+              {remainingSlots>0&&<span style={{color:"#fbbf24"}}>+{remainingSlots} villager{remainingSlots!==1?"s":""}</span>}
             </div>
           </Glass>
 
