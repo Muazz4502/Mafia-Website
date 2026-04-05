@@ -2,20 +2,21 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { db, auth, ref, set, get, push, onValue, onDisconnect, remove, update, signInAnonymously } from "./firebase";
 
 const ROLES = {
-  villager:     { team:"village" },
-  healer:       { team:"village" },
-  detective:    { team:"village" },
-  vigilante:    { team:"village" },
-  bodyguard:    { team:"village" },
-  seer:         { team:"village" },
-  mayor:        { team:"village" },
-  godfather:    { team:"mafia" },
-  mafioso:      { team:"mafia" },
-  consigliere:  { team:"mafia" },
-  bomber:       { team:"mafia" },
-  silencer:     { team:"neutral" },
-  serialKiller: { team:"neutral" },
-  survivor:     { team:"neutral" },
+  villager:       { team:"village" },
+  healer:         { team:"village" },
+  detective:      { team:"village" },
+  vigilante:      { team:"village" },
+  bodyguard:      { team:"village" },
+  seer:           { team:"village" },
+  mayor:          { team:"village" },
+  godfather:      { team:"mafia" },
+  mafioso:        { team:"mafia" },
+  consigliere:    { team:"mafia" },
+  bomber:         { team:"mafia" },
+  silencer:       { team:"neutral" },
+  serialKiller:   { team:"neutral" },
+  survivor:       { team:"neutral" },
+  suicideBomber:  { team:"neutral" },
 };
 
 const CODE_ADJ = ["DARK","COLD","GRIM","SLY","BOLD","WILD","RED","MAD","DEEP","PALE","LOUD"];
@@ -237,6 +238,19 @@ export function useFirebaseRoom() {
     });
   }, [roomCode, userId]);
 
+  // Helper: pick most-voted target from a group of actions (collective decision)
+  function collectiveTarget(actions, assignments, roleFilter) {
+    const tally = {};
+    Object.entries(actions).forEach(([pid, action]) => {
+      const role = assignments[pid]?.role;
+      if (roleFilter(role) && action.target) {
+        tally[action.target] = (tally[action.target] || 0) + 1;
+      }
+    });
+    const sorted = Object.entries(tally).sort((a, b) => b[1] - a[1]);
+    return sorted.length > 0 ? sorted[0][0] : null;
+  }
+
   // Resolve night (host only)
   const resolveNight = useCallback(async () => {
     if (!isHost || !roomCode) return;
@@ -251,56 +265,91 @@ export function useFirebaseRoom() {
     const playersSnap = await get(ref(db, `rooms/${roomCode}/players`));
     const playersVal = playersSnap.val() || {};
 
-    // Find targets by role
-    let mafiaTarget = null;
-    let healerTarget = null;
-
-    Object.entries(actions).forEach(([pid, action]) => {
-      const role = assignments[pid]?.role;
-      if (role === "mafioso" || role === "godfather") mafiaTarget = action.target;
-      if (role === "healer") healerTarget = action.target;
-    });
-
-    let killed = null;
-    if (mafiaTarget && mafiaTarget !== healerTarget && assignments[mafiaTarget]?.alive) {
-      killed = mafiaTarget;
-    }
+    // Collective decisions: each group votes on one target
+    const mafiaTarget = collectiveTarget(actions, assignments, r => r === "mafioso" || r === "godfather");
+    const healerTarget = collectiveTarget(actions, assignments, r => r === "healer");
+    const detectiveTarget = collectiveTarget(actions, assignments, r => r === "detective");
 
     const updates = {};
-    const existingLog = gam.gameLog ? Object.keys(gam.gameLog).length : 0;
-    const existingElim = gam.eliminatedPlayers ? Object.keys(gam.eliminatedPlayers).length : 0;
+    let logIdx = gam.gameLog ? Object.keys(gam.gameLog).length : 0;
+    let elimIdx = gam.eliminatedPlayers ? Object.keys(gam.eliminatedPlayers).length : 0;
+    const killed = [];
 
-    if (killed) {
-      updates[`game/assignments/${killed}/alive`] = false;
-      const killedName = playersVal[killed]?.name || "Unknown";
-      const killedRole = assignments[killed]?.role;
-      updates[`game/eliminatedPlayers/${existingElim}`] = {
-        name: killedName, role: killedRole, phase: `Night ${dayNum}`, playerId: killed
-      };
-      updates[`game/gameLog/${existingLog}`] = {
-        text: `Dawn breaks. ${killedName} was found dead.`, type: "death", timestamp: Date.now()
-      };
+    // Mafia kill (blocked by healer)
+    if (mafiaTarget && mafiaTarget !== healerTarget && assignments[mafiaTarget]?.alive) {
+      killed.push(mafiaTarget);
+    }
+
+    // Bodyguard: if protected target was attacked, bodyguard dies instead
+    Object.entries(actions).forEach(([pid, action]) => {
+      if (assignments[pid]?.role === "bodyguard" && action.target === mafiaTarget && mafiaTarget && assignments[pid]?.alive) {
+        // Bodyguard protected the mafia target — bodyguard dies, target lives
+        if (!killed.includes(mafiaTarget)) return; // target was already saved by healer
+        const idx = killed.indexOf(mafiaTarget);
+        if (idx !== -1) killed.splice(idx, 1); // remove target from killed
+        if (!killed.includes(pid)) killed.push(pid); // bodyguard dies
+      }
+    });
+
+    // Vigilante kills
+    Object.entries(actions).forEach(([pid, action]) => {
+      if (assignments[pid]?.role === "vigilante" && action.target && assignments[action.target]?.alive) {
+        if (action.target !== healerTarget && !killed.includes(action.target)) {
+          killed.push(action.target);
+        }
+      }
+    });
+
+    // Serial killer kills
+    Object.entries(actions).forEach(([pid, action]) => {
+      if (assignments[pid]?.role === "serialKiller" && action.target && assignments[action.target]?.alive) {
+        if (action.target !== healerTarget && !killed.includes(action.target)) {
+          killed.push(action.target);
+        }
+      }
+    });
+
+    // Detective result — store for detectives to see (collective investigation)
+    if (detectiveTarget && assignments[detectiveTarget]) {
+      const targetTeam = ROLES[assignments[detectiveTarget].role]?.team;
+      // Godfather appears innocent on first investigation
+      const appearsAs = assignments[detectiveTarget].role === "godfather" && !assignments[detectiveTarget].investigated ? "village" : targetTeam;
+      if (assignments[detectiveTarget].role === "godfather") {
+        updates[`game/assignments/${detectiveTarget}/investigated`] = true;
+      }
+      const detName = playersVal[detectiveTarget]?.name || "?";
+      updates[`game/detectiveResult`] = { target: detectiveTarget, name: detName, result: appearsAs };
+    }
+
+    // Apply kills
+    if (killed.length > 0) {
+      killed.forEach(pid => {
+        updates[`game/assignments/${pid}/alive`] = false;
+        const name = playersVal[pid]?.name || "Unknown";
+        const role = assignments[pid]?.role;
+        updates[`game/eliminatedPlayers/${elimIdx}`] = { name, role, phase: `Night ${dayNum}`, playerId: pid };
+        updates[`game/gameLog/${logIdx}`] = { text: `Dawn breaks. ${name} was found dead.`, type: "death", timestamp: Date.now() };
+        logIdx++;
+        elimIdx++;
+      });
     } else {
-      updates[`game/gameLog/${existingLog}`] = {
-        text: "Dawn breaks. Nobody died last night.", type: "system", timestamp: Date.now()
-      };
+      updates[`game/gameLog/${logIdx}`] = { text: "Dawn breaks. Nobody died last night.", type: "system", timestamp: Date.now() };
+      logIdx++;
     }
 
     updates["game/phase"] = "day";
     updates["game/nightActions"] = null;
 
-    // Check win after night kill
+    // Check win after night kills
     const updatedAssignments = { ...assignments };
-    if (killed) updatedAssignments[killed] = { ...updatedAssignments[killed], alive: false };
+    killed.forEach(pid => { updatedAssignments[pid] = { ...updatedAssignments[pid], alive: false }; });
     const aliveM = Object.values(updatedAssignments).filter(a => a.alive && ROLES[a.role]?.team === "mafia").length;
     const aliveV = Object.values(updatedAssignments).filter(a => a.alive && ROLES[a.role]?.team !== "mafia").length;
 
     if (aliveM === 0) {
-      const logIdx = killed ? existingLog + 1 : existingLog + 1;
       updates["game/winner"] = "village";
       updates[`game/gameLog/${logIdx}`] = { text: "The Village wins!", type: "win", timestamp: Date.now() };
     } else if (aliveM >= aliveV) {
-      const logIdx = killed ? existingLog + 1 : existingLog + 1;
       updates["game/winner"] = "mafia";
       updates[`game/gameLog/${logIdx}`] = { text: "The Mafia wins!", type: "win", timestamp: Date.now() };
     }
@@ -340,36 +389,50 @@ export function useFirebaseRoom() {
     const eliminated = sorted.length > 0 ? sorted[0][0] : null;
 
     const updates = {};
-    const existingLog = gam.gameLog ? Object.keys(gam.gameLog).length : 0;
-    const existingElim = gam.eliminatedPlayers ? Object.keys(gam.eliminatedPlayers).length : 0;
+    let logIdx = gam.gameLog ? Object.keys(gam.gameLog).length : 0;
+    let elimIdx = gam.eliminatedPlayers ? Object.keys(gam.eliminatedPlayers).length : 0;
+
+    // Clear detective result from previous night
+    updates["game/detectiveResult"] = null;
 
     if (eliminated) {
       updates[`game/assignments/${eliminated}/alive`] = false;
       const elimName = playersVal[eliminated]?.name || "Unknown";
       const elimRole = assignments[eliminated]?.role;
-      updates[`game/eliminatedPlayers/${existingElim}`] = {
+      updates[`game/eliminatedPlayers/${elimIdx}`] = {
         name: elimName, role: elimRole, phase: `Day ${dayNum}`, playerId: eliminated
       };
-      updates[`game/gameLog/${existingLog}`] = {
+      updates[`game/gameLog/${logIdx}`] = {
         text: `${elimName} was eliminated by the village.`, type: "death", timestamp: Date.now()
       };
+      logIdx++;
+      elimIdx++;
 
-      // Check win
-      const updatedAssignments = { ...assignments };
-      updatedAssignments[eliminated] = { ...updatedAssignments[eliminated], alive: false };
-      const aliveM = Object.values(updatedAssignments).filter(a => a.alive && ROLES[a.role]?.team === "mafia").length;
-      const aliveV = Object.values(updatedAssignments).filter(a => a.alive && ROLES[a.role]?.team !== "mafia").length;
-
-      if (aliveM === 0) {
-        updates["game/winner"] = "village";
-        updates[`game/gameLog/${existingLog + 1}`] = { text: "The Village wins!", type: "win", timestamp: Date.now() };
-      } else if (aliveM >= aliveV) {
-        updates["game/winner"] = "mafia";
-        updates[`game/gameLog/${existingLog + 1}`] = { text: "The Mafia wins!", type: "win", timestamp: Date.now() };
+      // SUICIDE BOMBER: if voted out, they win solo!
+      if (elimRole === "suicideBomber") {
+        updates["game/winner"] = "suicideBomber";
+        updates["game/winnerPlayerId"] = eliminated;
+        updates[`game/gameLog/${logIdx}`] = {
+          text: `💥 ${elimName} was the Suicide Bomber! They win!`, type: "win", timestamp: Date.now()
+        };
       } else {
-        updates["game/phase"] = "night";
-        updates["game/day"] = dayNum + 1;
-        updates[`game/gameLog/${existingLog + 1}`] = { text: `Night ${dayNum + 1} falls...`, type: "system", timestamp: Date.now() };
+        // Normal win check
+        const updatedAssignments = { ...assignments };
+        updatedAssignments[eliminated] = { ...updatedAssignments[eliminated], alive: false };
+        const aliveM = Object.values(updatedAssignments).filter(a => a.alive && ROLES[a.role]?.team === "mafia").length;
+        const aliveV = Object.values(updatedAssignments).filter(a => a.alive && ROLES[a.role]?.team !== "mafia").length;
+
+        if (aliveM === 0) {
+          updates["game/winner"] = "village";
+          updates[`game/gameLog/${logIdx}`] = { text: "The Village wins!", type: "win", timestamp: Date.now() };
+        } else if (aliveM >= aliveV) {
+          updates["game/winner"] = "mafia";
+          updates[`game/gameLog/${logIdx}`] = { text: "The Mafia wins!", type: "win", timestamp: Date.now() };
+        } else {
+          updates["game/phase"] = "night";
+          updates["game/day"] = dayNum + 1;
+          updates[`game/gameLog/${logIdx}`] = { text: `Night ${dayNum + 1} falls...`, type: "system", timestamp: Date.now() };
+        }
       }
     }
 
@@ -411,11 +474,12 @@ export function useFirebaseRoom() {
   const eliminatedPlayers = gameData?.eliminatedPlayers ? Object.values(gameData.eliminatedPlayers) : [];
   const gameLog = gameData?.gameLog ? Object.values(gameData.gameLog).sort((a,b) => (a.timestamp||0)-(b.timestamp||0)) : [];
   const gameActive = phase !== null && !winner;
+  const detectiveResult = gameData?.detectiveResult || null;
 
   return {
     userId, roomCode, isHost, players, roomConfig, error, loading,
     myRole, phase, day, winner, showRoleReveal, assignments, nightActions, votes,
-    eliminatedPlayers, gameLog, chatMessages, gameActive,
+    eliminatedPlayers, gameLog, chatMessages, gameActive, detectiveResult,
     createRoom, joinRoom, leaveRoom, updateConfig, startGame,
     submitNightAction, resolveNight, submitVote, resolveDay,
     sendChat, playAgain

@@ -16,7 +16,8 @@ const ROLES = {
   bomber:       { name:"Bomber",        team:"mafia",   icon:"💣", description:"Once per game, can plant a bomb that kills a player the next day.",                     balance:1.2 },
   silencer:     { name:"Silencer",      team:"neutral", icon:"🤫", description:"Silences a player — they cannot speak or vote the next day. Wins if alive at the end.", balance:0 },
   serialKiller: { name:"Serial Killer", team:"neutral", icon:"🩸", description:"Kills independently each night. Must be last one standing.",                            balance:0 },
-  survivor:     { name:"Survivor",      team:"neutral", icon:"🏃", description:"Just wants to survive. Wins with whichever team is left.",                              balance:0 },
+  survivor:      { name:"Survivor",       team:"neutral", icon:"🏃", description:"Just wants to survive. Wins with whichever team is left.",                              balance:0 },
+  suicideBomber: { name:"Suicide Bomber", team:"neutral", icon:"💀", description:"If voted out during the day, you win the game solo. Stay under the radar.",              balance:0 },
 };
 
 const PRESETS = {
@@ -199,7 +200,7 @@ export default function MafiaGame(){
   const {
     userId, roomCode, isHost, players, roomConfig, error: fbError, loading,
     myRole, phase, day, winner, showRoleReveal: fbShowReveal, assignments,
-    nightActions, votes, eliminatedPlayers, gameLog, chatMessages, gameActive,
+    nightActions, votes, eliminatedPlayers, gameLog, chatMessages, gameActive, detectiveResult,
     createRoom: fbCreateRoom, joinRoom: fbJoinRoom, leaveRoom, updateConfig,
     startGame: fbStartGame, submitNightAction, resolveNight, submitVote,
     resolveDay, sendChat: fbSendChat, playAgain
@@ -256,7 +257,7 @@ export default function MafiaGame(){
   }, [chatMessages]);
 
   // Host auto-resolve: night — when all alive players with night abilities have acted
-  const NO_NIGHT_ROLES = ["villager","mayor","survivor"];
+  const NO_NIGHT_ROLES = ["villager","mayor","survivor","suicideBomber"];
   useEffect(() => {
     if (!isHost || phase !== "night" || !assignments) return;
     const aliveActionPlayers = Object.entries(assignments).filter(([, a]) => {
@@ -474,7 +475,7 @@ export default function MafiaGame(){
     const mtc = TC[rd?.team||"village"];
     const myAssignment = assignments[userId];
     const amAlive = myAssignment?.alive !== false;
-    const NO_NIGHT_ACTION = ["villager","mayor","survivor"];
+    const NO_NIGHT_ACTION = ["villager","mayor","survivor","suicideBomber"];
     const hasNightAction = myRole && !NO_NIGHT_ACTION.includes(myRole);
 
     return <div style={page}><style>{CSS}</style><Grain/><Orbs variant={phase||"night"}/>
@@ -502,9 +503,9 @@ export default function MafiaGame(){
 
         {winner?(
           <div style={{textAlign:"center",padding:"60px 20px",animation:"fadeUp 0.8s ease"}}>
-            <div className="winner-icon" style={{filter:`drop-shadow(0 0 80px ${winner==="village"?"rgba(52,211,153,0.35)":"rgba(251,113,133,0.35)"})`}}>{winner==="village"?"🧑‍🌾":"🎭"}</div>
-            <h2 className="winner-title" style={{color:winner==="village"?"#6ee7b7":"#fda4af"}}>{winner==="village"?"Village Wins":"Mafia Wins"}</h2>
-            <p style={{fontFamily:"var(--fm)",fontSize:11,color:"var(--td)",maxWidth:400,margin:"0 auto 48px",lineHeight:1.7}}>{winner==="village"?"Justice prevails. Every last mafioso has been found.":"The mafia has seized control. The village falls silent."}</p>
+            <div className="winner-icon" style={{filter:`drop-shadow(0 0 80px ${winner==="village"?"rgba(52,211,153,0.35)":winner==="suicideBomber"?"rgba(167,139,250,0.35)":"rgba(251,113,133,0.35)"})`}}>{winner==="village"?"🧑‍🌾":winner==="suicideBomber"?"💀":"🎭"}</div>
+            <h2 className="winner-title" style={{color:winner==="village"?"#6ee7b7":winner==="suicideBomber"?"#c4b5fd":"#fda4af"}}>{winner==="village"?"Village Wins":winner==="suicideBomber"?"Suicide Bomber Wins!":"Mafia Wins"}</h2>
+            <p style={{fontFamily:"var(--fm)",fontSize:11,color:"var(--td)",maxWidth:400,margin:"0 auto 48px",lineHeight:1.7}}>{winner==="village"?"Justice prevails. Every last mafioso has been found.":winner==="suicideBomber"?"The village voted out the Suicide Bomber — and they took everyone down with them!":"The mafia has seized control. The village falls silent."}</p>
             <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center",marginBottom:52}}>
               {Object.entries(assignments).map(([id, a])=>{const tc=TC[ROLES[a.role]?.team||"village"];const pName=players.find(p=>p.id===id)?.name||"?";return <Glass key={id} style={{padding:"10px 16px",display:"flex",alignItems:"center",gap:10,opacity:a.alive?1:0.25}} glow={a.alive?tc.s:null}>
                 <span style={{fontSize:18}}>{ROLES[a.role]?.icon}</span>
@@ -518,6 +519,10 @@ export default function MafiaGame(){
         ):(
           <div className="game-grid">
             <div>
+              {phase==="day"&&myRole==="detective"&&detectiveResult&&<Glass style={{padding:"14px 18px",marginBottom:12,borderColor:detectiveResult.result==="village"?"rgba(52,211,153,0.3)":"rgba(251,113,133,0.3)"}} glow={detectiveResult.result==="village"?"#34d399":"#fb7185"}>
+                <div style={{fontFamily:"var(--fm)",fontSize:8,color:"var(--tm)",letterSpacing:4,marginBottom:8}}>🔍 INVESTIGATION RESULT</div>
+                <div style={{fontFamily:"var(--fd)",fontSize:14,color:"var(--t)"}}>{detectiveResult.name} appears <span style={{color:detectiveResult.result==="village"?"#6ee7b7":"#fda4af",fontWeight:600}}>{detectiveResult.result==="village"?"INNOCENT":"GUILTY"}</span></div>
+              </Glass>}
               <Glass className="action-panel" style={{marginBottom:18}}>
                 {!amAlive ? (
                   <>
