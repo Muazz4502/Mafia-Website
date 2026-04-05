@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useFirebaseRoom } from "./useFirebaseRoom";
 
 /* ─── DATA ─── */
 const ROLES = {
@@ -30,14 +31,6 @@ const TC = {
   mafia:   { p:"#fda4af", s:"#fb7185", bg:"rgba(251,113,133,0.06)", bdr:"rgba(251,113,133,0.18)" },
   neutral: { p:"#c4b5fd", s:"#a78bfa", bg:"rgba(167,139,250,0.06)", bdr:"rgba(167,139,250,0.18)" }
 };
-const CODE_ADJ = ["DARK","COLD","GRIM","SLY","BOLD","WILD","RED","MAD","DEEP","PALE","LOUD"];
-const CODE_NOUN = ["FOX","OWL","WOLF","FANG","MOON","CROW","DUSK","CLAW","BONE","RAGE","TOMB","FATE"];
-const genId = () => {
-  const adj = CODE_ADJ[Math.floor(Math.random()*CODE_ADJ.length)];
-  const noun = CODE_NOUN[Math.floor(Math.random()*CODE_NOUN.length)];
-  const num = Math.floor(Math.random()*90+10);
-  return `${adj}${noun}${num}`;
-};
 
 /* ─── GLOBAL CSS ─── */
 const CSS = `
@@ -55,8 +48,6 @@ const CSS = `
 @keyframes scaleUp{from{opacity:0;transform:scale(0.88)}to{opacity:1;transform:scale(1)}}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @keyframes roleFlip{0%{transform:perspective(800px) rotateY(100deg) scale(0.7);opacity:0}50%{transform:perspective(800px) rotateY(-5deg) scale(1.06);opacity:1}100%{transform:perspective(800px) rotateY(0) scale(1)}}
-@keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
-@keyframes breathe{0%,100%{opacity:0.3}50%{opacity:0.7}}
 @keyframes grain{0%,100%{transform:translate(0,0)}25%{transform:translate(-2%,-3%)}50%{transform:translate(3%,1%)}75%{transform:translate(-1%,2%)}}
 @keyframes orbFloat1{0%{transform:translate(0,0) scale(1)}33%{transform:translate(30%,20%) scale(1.2)}66%{transform:translate(-20%,10%) scale(0.9)}100%{transform:translate(0,0) scale(1)}}
 @keyframes orbFloat2{0%{transform:translate(0,0) scale(1)}33%{transform:translate(-25%,15%) scale(0.8)}66%{transform:translate(15%,-20%) scale(1.15)}100%{transform:translate(0,0) scale(1)}}
@@ -71,7 +62,7 @@ html,body,#root{overflow-x:hidden;width:100%;max-width:100vw;position:relative}
 .home-title{font-family:var(--fd);font-size:72px;font-weight:400;color:var(--t);letter-spacing:2px;line-height:1}
 .home-icon{font-size:80px;margin-bottom:16px}
 .home-sub{font-family:var(--fm);font-size:10px;color:var(--td);letter-spacing:6px;text-transform:uppercase;margin-top:14px}
-.room-code{font-family:var(--fd);font-size:40px;color:var(--red);letter-spacing:5px;word-break:break-all}
+.room-code{font-family:var(--fd);font-size:40px;color:var(--red);letter-spacing:3px;word-break:break-all}
 .lobby-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:36px;gap:12px;flex-wrap:wrap}
 .role-reveal-icon{font-size:110px;margin-bottom:24px}
 .role-reveal-name{font-family:var(--fd);font-size:56px;margin-bottom:12px}
@@ -85,18 +76,19 @@ html,body,#root{overflow-x:hidden;width:100%;max-width:100vw;position:relative}
 .action-title{font-family:var(--fd);font-size:22px;color:var(--t);margin-bottom:4px}
 .player-count-num{font-family:var(--fd);font-size:56px;color:var(--t);line-height:1}
 .preset-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
-.role-card{overflow:hidden}
 .glass-pad{padding:22px 28px}
+.role-card{overflow:hidden}
+.role-card-row{display:flex;align-items:center;gap:10px}
+.role-card-desc{font-family:var(--fm);font-size:9px;color:var(--td);line-height:1.6;margin-top:6px;padding-left:44px}
+.error-msg{font-family:var(--fm);font-size:10px;color:#fb7185;text-align:center;padding:8px;animation:fadeIn 0.3s ease}
 @media(max-width:768px){
-  .role-card .role-desc-text{font-size:8px;padding-left:0 !important}
-  .glass-pad{padding:16px 14px}
   .wrap{padding:16px 12px 40px}
   .lobby-grid{grid-template-columns:1fr !important;gap:20px}
   .game-grid{grid-template-columns:1fr !important;gap:16px}
   .home-title{font-size:42px;letter-spacing:1px}
   .home-icon{font-size:52px;margin-bottom:10px}
   .home-sub{font-size:8px;letter-spacing:4px}
-  .room-code{font-size:22px;letter-spacing:2px}
+  .room-code{font-size:20px;letter-spacing:2px}
   .lobby-header{margin-bottom:20px}
   .role-reveal-icon{font-size:64px;margin-bottom:14px}
   .role-reveal-name{font-size:32px;margin-bottom:8px}
@@ -111,6 +103,9 @@ html,body,#root{overflow-x:hidden;width:100%;max-width:100vw;position:relative}
   .player-count-num{font-size:40px}
   .preset-row{gap:4px}
   .preset-row button{font-size:9px !important;padding:8px 6px !important}
+  .glass-pad{padding:16px 14px}
+  .role-card-row{gap:8px}
+  .role-card-desc{font-size:8px;padding-left:0;margin-top:8px;line-height:1.6}
 }
 `;
 
@@ -160,38 +155,39 @@ function BalanceMeter({roles}){
   const ov=Math.max(0,Math.min(100,(s1*0.5+s2*0.5)*100));
   const color=ov>70?"#34d399":ov>45?"#fbbf24":"#fb7185";
   const label=ov>70?"Balanced":ov>45?"Tilted":"Unbalanced";
-  return <Glass style={{padding:"18px 22px",marginBottom:14}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <span style={{fontFamily:"var(--fd)",fontSize:15,color:"var(--t)"}}>Game Balance</span>
-      <span style={{fontFamily:"var(--fm)",fontSize:10,color,fontWeight:600,padding:"3px 12px",background:`${color}12`,borderRadius:20,border:`1px solid ${color}25`}}>{label}</span>
+  return <Glass style={{padding:"14px 18px",marginBottom:14}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+      <span style={{fontFamily:"var(--fd)",fontSize:14,color:"var(--t)"}}>Balance</span>
+      <span style={{fontFamily:"var(--fm)",fontSize:9,color,fontWeight:600,padding:"3px 10px",background:`${color}12`,borderRadius:20,border:`1px solid ${color}25`}}>{label}</span>
     </div>
-    <div style={{height:5,background:"rgba(255,255,255,0.04)",borderRadius:10,overflow:"hidden",marginBottom:14}}>
+    <div style={{height:4,background:"rgba(255,255,255,0.04)",borderRadius:10,overflow:"hidden",marginBottom:10}}>
       <div style={{height:"100%",width:`${ov}%`,background:`linear-gradient(90deg,${color},${color}88)`,borderRadius:10,transition:"width 0.6s cubic-bezier(0.22,1,0.36,1)"}}/>
     </div>
-    <div style={{display:"flex",justifyContent:"space-between",fontFamily:"var(--fm)",fontSize:9,color:"var(--td)"}}>
-      <span style={{color:TC.village.s}}>Village {vC} · {vP.toFixed(1)}p</span>
+    <div style={{display:"flex",justifyContent:"space-between",fontFamily:"var(--fm)",fontSize:8,color:"var(--td)",flexWrap:"wrap",gap:4}}>
+      <span style={{color:TC.village.s}}>Village {vC}</span>
       <span>{(ratio*100).toFixed(0)}% mafia</span>
-      <span style={{color:TC.mafia.s}}>Mafia {mC} · {mP.toFixed(1)}p</span>
+      <span style={{color:TC.mafia.s}}>Mafia {mC}</span>
     </div>
   </Glass>;
 }
 
-function RoleCard({role,count,onChange}){
+function RoleCard({role,count,onChange,disabled}){
   const tc=TC[role.team];
   return <Glass className="role-card" style={{padding:"12px 14px",opacity:count>0?1:0.4,borderColor:count>0?tc.bdr:"var(--b)"}} glow={count>0?tc.s:null}>
-    <div style={{display:"flex",alignItems:"center",gap:10}}>
+    <div className="role-card-row">
       <div style={{width:34,height:34,borderRadius:10,background:count>0?tc.bg:"var(--sf)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{role.icon}</div>
-      <div style={{flex:1,minWidth:0,display:"flex",alignItems:"center",gap:6}}>
-        <span style={{fontFamily:"var(--fd)",fontSize:13,color:"var(--t)",whiteSpace:"nowrap"}}>{role.name}</span>
-        <span style={{fontFamily:"var(--fm)",fontSize:7,color:tc.s,letterSpacing:1,textTransform:"uppercase",flexShrink:0}}>{role.team}</span>
+      <div style={{flex:1,minWidth:0}}>
+        <span style={{fontFamily:"var(--fd)",fontSize:13,color:"var(--t)"}}>{role.name}</span>
+        <span style={{fontFamily:"var(--fm)",fontSize:7,color:tc.s,letterSpacing:1,textTransform:"uppercase",marginLeft:6}}>{role.team}</span>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
+      {!disabled && <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
         <button onClick={()=>onChange(Math.max(0,count-1))} style={{width:28,height:28,borderRadius:8,border:"1px solid var(--b)",background:"var(--sf)",color:"var(--ts)",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
         <span style={{fontFamily:"var(--fm)",fontSize:15,color:"var(--t)",width:22,textAlign:"center",fontWeight:600}}>{count}</span>
         <button onClick={()=>onChange(count+1)} style={{width:28,height:28,borderRadius:8,border:`1px solid ${tc.bdr}`,background:tc.bg,color:tc.s,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
-      </div>
+      </div>}
+      {disabled && <span style={{fontFamily:"var(--fm)",fontSize:15,color:"var(--t)",fontWeight:600}}>{count}</span>}
     </div>
-    <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--td)",lineHeight:1.5,marginTop:6,paddingLeft:44}}>{role.description}</div>
+    <div className="role-card-desc">{role.description}</div>
   </Glass>;
 }
 
@@ -199,66 +195,163 @@ function RoleCard({role,count,onChange}){
    MAIN APP
    ═══════════════════════════════════════════ */
 export default function MafiaGame(){
-  const [screen,setScreen]=useState("home");
-  const [playerName,setPlayerName]=useState("");
-  const [roomCode,setRoomCode]=useState("");
-  const [joinCode,setJoinCode]=useState("");
-  const [maxPlayers,setMaxPlayers]=useState(7);
-  const [roles,setRoles]=useState({villager:3,healer:1,detective:1,godfather:1,mafioso:1});
-  const [players,setPlayers]=useState([]);
-  const [isHost,setIsHost]=useState(false);
-  const [gameState,setGameState]=useState(null);
-  const [myRole,setMyRole]=useState(null);
-  const [phase,setPhase]=useState("night");
-  const [day,setDay]=useState(1);
-  const [selectedTarget,setSelectedTarget]=useState(null);
-  const [chatMessages,setChatMessages]=useState([]);
-  const [chatInput,setChatInput]=useState("");
-  const [showRoleReveal,setShowRoleReveal]=useState(true);
-  const [eliminatedPlayers,setEliminatedPlayers]=useState([]);
-  const [gameLog,setGameLog]=useState([]);
-  const [winner,setWinner]=useState(null);
-  const [roleTab,setRoleTab]=useState("village");
-  const chatEndRef=useRef(null);
+  const fb = useFirebaseRoom();
+  const {
+    userId, roomCode, isHost, players, roomConfig, error: fbError, loading,
+    myRole, phase, day, winner, showRoleReveal: fbShowReveal, assignments,
+    nightActions, votes, eliminatedPlayers, gameLog, chatMessages, gameActive,
+    createRoom: fbCreateRoom, joinRoom: fbJoinRoom, leaveRoom, updateConfig,
+    startGame: fbStartGame, submitNightAction, resolveNight, submitVote,
+    resolveDay, sendChat: fbSendChat, playAgain
+  } = fb;
 
-  const assignedRoles=Object.values(roles).reduce((a,b)=>a+b,0);
-  const remainingSlots=Math.max(0,maxPlayers-assignedRoles);
+  const [screen, setScreen] = useState("home");
+  const [playerName, setPlayerName] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const [selectedTarget, setSelectedTarget] = useState(null);
+  const [chatInput, setChatInput] = useState("");
+  const [localShowReveal, setLocalShowReveal] = useState(false);
+  const [roleTab, setRoleTab] = useState("village");
+  const [joinError, setJoinError] = useState(null);
+  const [actionSubmitted, setActionSubmitted] = useState(false);
+  const [voteSubmitted, setVoteSubmitted] = useState(false);
+  const chatEndRef = useRef(null);
 
-  const updateMaxPlayers=(n)=>{const c=Math.max(4,Math.min(20,n));setMaxPlayers(c);const cur=Object.values(roles).reduce((a,b)=>a+b,0);if(cur>c)setRoles(prev=>({...prev,villager:Math.max(0,(prev.villager||0)-(cur-c))}));};
-  const updateRole=(key,value)=>{const other=Object.entries(roles).filter(([k])=>k!==key).reduce((a,[,v])=>a+v,0);setRoles(prev=>({...prev,[key]:Math.max(0,Math.min(maxPlayers-other,value))}));};
-  const createRoom=()=>{if(!playerName.trim())return;setRoomCode(genId());setIsHost(true);setPlayers([{name:playerName,isHost:true,isReady:false,id:"host"}]);setScreen("lobby");};
-  const joinRoom=()=>{if(!playerName.trim()||!joinCode.trim())return;setRoomCode(joinCode.toUpperCase());setIsHost(false);setPlayers(prev=>[...prev,{name:playerName,isHost:false,isReady:false,id:genId()}]);setScreen("lobby");};
-  const simulateJoin=()=>{const names=["Raven","Ghost","Cipher","Nova","Blaze","Storm","Echo","Viper","Phoenix","Shade","Frost","Dusk","Wraith","Hex","Ember","Luna","Onyx","Ash","Nyx","Rune"];const avail=names.filter(n=>!players.some(p=>p.name===n));if(avail.length>0&&players.length<maxPlayers)setPlayers(prev=>[...prev,{name:avail[Math.floor(Math.random()*avail.length)],isHost:false,isReady:true,id:genId()}]);};
+  const roles = roomConfig?.roles || {};
+  const maxPlayers = roomConfig?.maxPlayers || 7;
+  const assignedRoles = Object.values(roles).reduce((a,b)=>a+b,0);
+  const remainingSlots = Math.max(0, maxPlayers - assignedRoles);
 
-  const startGame=()=>{
-    const pool=[];Object.entries(roles).forEach(([k,c])=>{for(let i=0;i<c;i++)pool.push(k);});
-    while(pool.length<players.length)pool.push("villager");
-    for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-    const assigned=players.map((p,i)=>({...p,role:pool[i]||"villager",alive:true}));
-    setGameState(assigned);setMyRole(assigned[0].role);setPhase("night");setDay(1);setShowRoleReveal(true);
-    setEliminatedPlayers([]);setGameLog([{text:"Night falls on the village...",type:"system"}]);setChatMessages([]);setWinner(null);setScreen("game");
-    setTimeout(()=>setShowRoleReveal(false),4500);
+  // Transition to game screen when game starts
+  useEffect(() => {
+    if (phase && screen === "lobby") setScreen("game");
+  }, [phase, screen]);
+
+  // Role reveal sync
+  useEffect(() => {
+    if (fbShowReveal) {
+      setLocalShowReveal(true);
+      const t = setTimeout(() => setLocalShowReveal(false), 4500);
+      return () => clearTimeout(t);
+    } else {
+      setLocalShowReveal(false);
+    }
+  }, [fbShowReveal]);
+
+  // Reset action/vote state on phase change
+  useEffect(() => {
+    setActionSubmitted(false);
+    setVoteSubmitted(false);
+    setSelectedTarget(null);
+  }, [phase, day]);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  // Host auto-resolve: when all alive non-villager-role players have acted at night
+  useEffect(() => {
+    if (!isHost || phase !== "night" || !assignments) return;
+    const aliveActionPlayers = Object.entries(assignments).filter(([, a]) => {
+      if (!a.alive) return false;
+      const r = a.role;
+      return r !== "villager" && r !== "mayor" && r !== "survivor";
+    });
+    if (aliveActionPlayers.length === 0) return;
+    const actedCount = Object.keys(nightActions).length;
+    if (actedCount > 0 && actedCount >= aliveActionPlayers.length) {
+      const timer = setTimeout(() => resolveNight(), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isHost, phase, assignments, nightActions, resolveNight]);
+
+  // Host auto-resolve: when all alive players have voted during day
+  useEffect(() => {
+    if (!isHost || phase !== "day" || !assignments) return;
+    const aliveCount = Object.values(assignments).filter(a => a.alive).length;
+    const voteCount = Object.keys(votes).length;
+    if (voteCount > 0 && voteCount >= aliveCount) {
+      const timer = setTimeout(() => resolveDay(), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isHost, phase, assignments, votes, resolveDay]);
+
+  // Build alive players list for game screen
+  const alive = assignments ? Object.entries(assignments)
+    .filter(([, a]) => a.alive)
+    .map(([id, a]) => ({ id, ...a, name: players.find(p => p.id === id)?.name || "?" })) : [];
+
+  const handleCreateRoom = async () => {
+    if (!playerName.trim()) return;
+    const code = await fbCreateRoom(playerName.trim());
+    if (code) setScreen("lobby");
   };
 
-  const nightAction=()=>{if(!selectedTarget)return;setGameLog(prev=>[...prev,{text:`You targeted ${selectedTarget}.`,type:"action"}]);
-    setTimeout(()=>{const alive=gameState.filter(p=>p.alive);const mt=alive.find(p=>ROLES[p.role]?.team!=="mafia")?.name;const ht=alive.find(p=>ROLES[p.role]?.team==="village"&&p.name!==playerName)?.name;let killed=null;if(mt&&mt!==ht)killed=mt;
-      if(killed){setGameState(prev=>prev.map(p=>p.name===killed?{...p,alive:false}:p));setEliminatedPlayers(prev=>[...prev,{name:killed,role:gameState.find(p=>p.name===killed)?.role,phase:`Night ${day}`}]);setGameLog(prev=>[...prev,{text:`Dawn breaks. ${killed} was found dead.`,type:"death"}]);}
-      else setGameLog(prev=>[...prev,{text:"Dawn breaks. Nobody died last night.",type:"system"}]);
-      setPhase("day");setSelectedTarget(null);},2000);};
+  const handleJoinRoom = async () => {
+    if (!playerName.trim() || !joinCode.trim()) return;
+    setJoinError(null);
+    const result = await fbJoinRoom(joinCode.trim(), playerName.trim());
+    if (result.error) {
+      setJoinError(result.error);
+    } else {
+      setScreen("lobby");
+    }
+  };
 
-  const vote=(target)=>{setGameLog(prev=>[...prev,{text:`You voted to eliminate ${target}.`,type:"action"}]);
-    setTimeout(()=>{setGameState(prev=>prev.map(p=>p.name===target?{...p,alive:false}:p));setEliminatedPlayers(prev=>[...prev,{name:target,role:gameState.find(p=>p.name===target)?.role,phase:`Day ${day}`}]);setGameLog(prev=>[...prev,{text:`${target} was eliminated by the village.`,type:"death"}]);
-      const upd=gameState.map(p=>p.name===target?{...p,alive:false}:p);const am=upd.filter(p=>p.alive&&ROLES[p.role]?.team==="mafia").length;const av=upd.filter(p=>p.alive&&ROLES[p.role]?.team!=="mafia").length;
-      if(am===0){setWinner("village");setGameLog(prev=>[...prev,{text:"The Village wins!",type:"win"}]);}
-      else if(am>=av){setWinner("mafia");setGameLog(prev=>[...prev,{text:"The Mafia wins!",type:"win"}]);}
-      else{setPhase("night");setDay(d=>d+1);setSelectedTarget(null);setGameLog(prev=>[...prev,{text:`Night ${day+1} falls...`,type:"system"}]);}
-    },2000);};
+  const handleLeave = async () => {
+    await leaveRoom();
+    setScreen("home");
+  };
 
-  const sendChat=()=>{if(!chatInput.trim())return;setChatMessages(prev=>[...prev,{sender:playerName,text:chatInput,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}]);setChatInput("");};
+  const handleStartGame = () => fbStartGame();
 
-  const page={minHeight:"100vh",background:"var(--bg)",color:"var(--t)",fontFamily:"var(--fm)",position:"relative",overflowX:"hidden",width:"100%"};
-  const inp={width:"100%",padding:"15px 20px",background:"rgba(255,255,255,0.03)",border:"1px solid var(--b)",borderRadius:14,color:"var(--t)",fontFamily:"var(--fm)",fontSize:13,transition:"border 0.3s"};
-  const bigBtn={padding:"18px",background:"linear-gradient(135deg,#be123c,#9f1239)",borderRadius:14,color:"#fff",fontFamily:"var(--fd)",fontSize:20,boxShadow:"0 12px 40px rgba(190,18,60,0.25),inset 0 1px 0 rgba(255,255,255,0.1)",width:"100%"};
+  const handleNightAction = async () => {
+    if (!selectedTarget || actionSubmitted) return;
+    await submitNightAction(selectedTarget);
+    setActionSubmitted(true);
+  };
+
+  const handleVote = async (targetId) => {
+    if (voteSubmitted) return;
+    await submitVote(targetId);
+    setVoteSubmitted(true);
+  };
+
+  const handleSendChat = () => {
+    if (!chatInput.trim()) return;
+    fbSendChat(chatInput, playerName);
+    setChatInput("");
+  };
+
+  const handleUpdateMaxPlayers = (n) => {
+    const c = Math.max(4, Math.min(20, n));
+    const newRoles = { ...roles };
+    const cur = Object.values(newRoles).reduce((a,b)=>a+b,0);
+    if (cur > c) newRoles.villager = Math.max(0, (newRoles.villager||0) - (cur - c));
+    updateConfig({ maxPlayers: c, roles: newRoles });
+  };
+
+  const handleUpdateRole = (key, value) => {
+    const other = Object.entries(roles).filter(([k])=>k!==key).reduce((a,[,v])=>a+v,0);
+    const clamped = Math.max(0, Math.min(maxPlayers - other, value));
+    updateConfig({ roles: { ...roles, [key]: clamped } });
+  };
+
+  const handlePlayAgain = async () => {
+    await playAgain();
+    setScreen("lobby");
+  };
+
+  const page = {minHeight:"100vh",background:"var(--bg)",color:"var(--t)",fontFamily:"var(--fm)",position:"relative",overflowX:"hidden",width:"100%"};
+  const inp = {width:"100%",padding:"15px 20px",background:"rgba(255,255,255,0.03)",border:"1px solid var(--b)",borderRadius:14,color:"var(--t)",fontFamily:"var(--fm)",fontSize:13,transition:"border 0.3s"};
+  const bigBtn = {padding:"18px",background:"linear-gradient(135deg,#be123c,#9f1239)",borderRadius:14,color:"#fff",fontFamily:"var(--fd)",fontSize:20,boxShadow:"0 12px 40px rgba(190,18,60,0.25),inset 0 1px 0 rgba(255,255,255,0.1)",width:"100%"};
+
+  // Loading state
+  if (loading) return <div style={{...page,display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh"}}>
+    <style>{CSS}</style><Grain/><Orbs variant="home"/>
+    <div style={{fontFamily:"var(--fd)",fontSize:24,color:"var(--td)",animation:"fadeIn 0.5s ease",position:"relative",zIndex:1}}>Connecting...</div>
+  </div>;
 
   /* ═══ HOME ═══ */
   if(screen==="home") return <div style={page}><style>{CSS}</style><Grain/><Orbs variant="home"/>
@@ -272,16 +365,17 @@ export default function MafiaGame(){
         <input type="text" placeholder="Enter your name" value={playerName} onChange={e=>setPlayerName(e.target.value)} style={{...inp,marginBottom:4,textAlign:"center",fontSize:15}} autoComplete="off" autoCorrect="off" spellCheck="false"/>
         {!playerName.trim()&&<div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",textAlign:"center",marginBottom:12}}>Name required to create or join</div>}
         {playerName.trim()&&<div style={{height:18,marginBottom:4}}/>}
-        <button onClick={createRoom} style={bigBtn}>Create Room</button>
+        <button onClick={handleCreateRoom} style={bigBtn}>Create Room</button>
         <div style={{display:"flex",alignItems:"center",gap:16,margin:"22px 0"}}>
           <div style={{flex:1,height:1,background:"linear-gradient(90deg,transparent,var(--b),transparent)"}}/>
           <span style={{fontSize:9,color:"var(--tm)",letterSpacing:4}}>OR JOIN</span>
           <div style={{flex:1,height:1,background:"linear-gradient(90deg,transparent,var(--b),transparent)"}}/>
         </div>
         <div style={{display:"flex",gap:8}}>
-          <input type="text" placeholder="DARKWOLF42" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} maxLength={12} style={{...inp,textAlign:"center",letterSpacing:2,fontSize:14,fontWeight:600}} autoComplete="off" autoCorrect="off" autoCapitalize="characters" spellCheck="false"/>
-          <button onClick={joinRoom} style={{padding:"15px 28px",background:"var(--s)",border:"1px solid var(--bh)",borderRadius:14,color:"var(--t)",fontSize:12,fontWeight:500}}>Join</button>
+          <input type="text" placeholder="DARKWOLF42" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} maxLength={12} style={{...inp,textAlign:"center",letterSpacing:2,fontSize:14,fontWeight:600}} autoComplete="off" autoCorrect="off" autoCapitalize="characters" spellCheck="false" onKeyDown={e=>e.key==="Enter"&&handleJoinRoom()}/>
+          <button onClick={handleJoinRoom} style={{padding:"15px 28px",background:"var(--s)",border:"1px solid var(--bh)",borderRadius:14,color:"var(--t)",fontSize:12,fontWeight:500}}>Join</button>
         </div>
+        {(joinError||fbError)&&<div className="error-msg">{joinError||fbError}</div>}
       </div>
     </div>
   </div>;
@@ -294,7 +388,7 @@ export default function MafiaGame(){
           <div style={{fontFamily:"var(--fm)",fontSize:8,color:"var(--tm)",letterSpacing:5,marginBottom:6}}>ROOM CODE</div>
           <div className="room-code">{roomCode}</div>
         </div>
-        <button onClick={()=>setScreen("home")} style={{padding:"10px 22px",background:"var(--s)",border:"1px solid var(--b)",borderRadius:10,color:"var(--td)",fontSize:11,flexShrink:0}}>← Leave</button>
+        <button onClick={handleLeave} style={{padding:"10px 22px",background:"var(--s)",border:"1px solid var(--b)",borderRadius:10,color:"var(--td)",fontSize:11,flexShrink:0}}>← Leave</button>
       </div>
 
       <div className="lobby-grid">
@@ -309,32 +403,31 @@ export default function MafiaGame(){
               <Avatar name={p.name} size={34}/>
               <span style={{flex:1,fontFamily:"var(--fd)",fontSize:14,color:"var(--t)"}}>{p.name}</span>
               {p.isHost&&<span style={{fontFamily:"var(--fm)",fontSize:7,color:"#fbbf24",background:"rgba(251,191,36,0.1)",padding:"3px 10px",borderRadius:20,letterSpacing:2}}>HOST</span>}
-              <span style={{width:7,height:7,borderRadius:"50%",background:p.isReady?"#34d399":"rgba(255,255,255,0.08)"}}/>
+              {p.id===userId&&<span style={{fontFamily:"var(--fm)",fontSize:7,color:"#93c5fd",background:"rgba(147,197,253,0.1)",padding:"3px 8px",borderRadius:20}}>YOU</span>}
             </Glass>)}
             {Array.from({length:Math.max(0,maxPlayers-players.length)}).map((_,i)=>
               <div key={`e${i}`} style={{padding:"14px 16px",borderRadius:18,border:"1px dashed rgba(255,255,255,0.04)",textAlign:"center",fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)"}}>waiting for player...</div>
             )}
           </div>
-          {isHost&&<button onClick={simulateJoin} style={{width:"100%",padding:"12px",background:"var(--s)",border:"1px solid var(--b)",borderRadius:12,color:"var(--td)",fontSize:10,marginBottom:14,letterSpacing:0.5}}>+ Simulate Player</button>}
-          {isHost&&players.length>=4&&<button onClick={startGame} style={bigBtn}>Start Game</button>}
-          {isHost&&players.length<4&&<Glass style={{padding:14,textAlign:"center"}}><span style={{fontFamily:"var(--fm)",fontSize:10,color:"#fbbf24"}}>Need at least 4 players to start</span></Glass>}
+          {isHost&&players.length>=4&&<button onClick={handleStartGame} style={bigBtn}>Start Game</button>}
+          {isHost&&players.length<4&&<Glass style={{padding:14,textAlign:"center"}}><span style={{fontFamily:"var(--fm)",fontSize:10,color:"#fbbf24"}}>Need at least 4 players</span></Glass>}
+          {!isHost&&<Glass style={{padding:14,textAlign:"center"}}><span style={{fontFamily:"var(--fm)",fontSize:10,color:"var(--td)"}}>Waiting for host to start...</span></Glass>}
         </div>
 
         {/* Setup */}
         <div>
-          {/* Player Count */}
           <Glass className="glass-pad" style={{marginBottom:18}}>
             <div style={{fontFamily:"var(--fm)",fontSize:8,color:"var(--tm)",letterSpacing:4,marginBottom:16}}>PLAYER COUNT</div>
             <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:24,marginBottom:16}}>
-              <button onClick={()=>updateMaxPlayers(maxPlayers-1)} style={{width:44,height:44,borderRadius:13,border:"1px solid var(--b)",background:"var(--sf)",color:"var(--ts)",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+              {isHost&&<button onClick={()=>handleUpdateMaxPlayers(maxPlayers-1)} style={{width:44,height:44,borderRadius:13,border:"1px solid var(--b)",background:"var(--sf)",color:"var(--ts)",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>}
               <div style={{textAlign:"center",minWidth:70}}>
                 <div className="player-count-num">{maxPlayers}</div>
               </div>
-              <button onClick={()=>updateMaxPlayers(maxPlayers+1)} style={{width:44,height:44,borderRadius:13,border:"1px solid rgba(251,113,133,0.2)",background:"var(--redbg)",color:"var(--red)",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+              {isHost&&<button onClick={()=>handleUpdateMaxPlayers(maxPlayers+1)} style={{width:44,height:44,borderRadius:13,border:"1px solid rgba(251,113,133,0.2)",background:"var(--redbg)",color:"var(--red)",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>}
             </div>
-            <div style={{display:"flex",gap:5,justifyContent:"center",marginBottom:16,flexWrap:"wrap"}}>
-              {[5,6,7,8,10,12,15].map(n=><button key={n} onClick={()=>updateMaxPlayers(n)} style={{padding:"6px 10px",borderRadius:8,fontSize:10,fontWeight:maxPlayers===n?600:400,background:maxPlayers===n?"var(--redbg)":"var(--sf)",border:`1px solid ${maxPlayers===n?"rgba(251,113,133,0.2)":"var(--b)"}`,color:maxPlayers===n?"var(--red)":"var(--tm)"}}>{n}</button>)}
-            </div>
+            {isHost&&<div style={{display:"flex",gap:5,justifyContent:"center",marginBottom:16,flexWrap:"wrap"}}>
+              {[5,6,7,8,10,12,15].map(n=><button key={n} onClick={()=>handleUpdateMaxPlayers(n)} style={{padding:"6px 10px",borderRadius:8,fontSize:10,fontWeight:maxPlayers===n?600:400,background:maxPlayers===n?"var(--redbg)":"var(--sf)",border:`1px solid ${maxPlayers===n?"rgba(251,113,133,0.2)":"var(--b)"}`,color:maxPlayers===n?"var(--red)":"var(--tm)"}}>{n}</button>)}
+            </div>}
             <Divider/>
             <div style={{display:"flex",justifyContent:"space-between",fontFamily:"var(--fm)",fontSize:9,flexWrap:"wrap",gap:4}}>
               <span style={{color:"var(--td)"}}>Roles: <span style={{color:assignedRoles>maxPlayers?"#fb7185":"#34d399",fontWeight:600}}>{assignedRoles}</span>/{maxPlayers}</span>
@@ -342,23 +435,20 @@ export default function MafiaGame(){
             </div>
           </Glass>
 
-          {/* Presets */}
-          <div className="preset-row">
-            {Object.entries(PRESETS).map(([k,p])=>{const t=Object.values(p.roles).reduce((a,b)=>a+b,0);return <button key={k} onClick={()=>{setRoles({...Object.fromEntries(Object.keys(ROLES).map(k=>[k,0])),...p.roles});setMaxPlayers(t);}}
+          {isHost&&<div className="preset-row">
+            {Object.entries(PRESETS).map(([k,p])=>{const t=Object.values(p.roles).reduce((a,b)=>a+b,0);return <button key={k} onClick={()=>updateConfig({roles:{...Object.fromEntries(Object.keys(ROLES).map(k=>[k,0])),...p.roles},maxPlayers:t})}
               style={{flex:1,padding:"11px 8px",background:"var(--s)",border:"1px solid var(--b)",borderRadius:12,color:"var(--ts)",fontSize:10,fontWeight:500}}>{p.name}</button>;})}
-          </div>
+          </div>}
 
           <BalanceMeter roles={{...roles,villager:(roles.villager||0)+remainingSlots}}/>
 
-          {/* Tabs */}
           <div style={{display:"flex",gap:3,marginBottom:12}}>
             {["village","mafia","neutral"].map(tab=>{const tc=TC[tab];return <button key={tab} onClick={()=>setRoleTab(tab)}
               style={{flex:1,padding:"10px",background:roleTab===tab?tc.bg:"transparent",border:`1px solid ${roleTab===tab?tc.bdr:"var(--b)"}`,borderRadius:11,color:roleTab===tab?tc.p:"var(--tm)",fontSize:9,letterSpacing:2,textTransform:"uppercase",fontWeight:roleTab===tab?600:400}}>{tab}</button>;})}
           </div>
 
-          {/* Roles */}
           <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:320,overflowY:"auto",paddingRight:4}}>
-            {Object.entries(ROLES).filter(([,r])=>r.team===roleTab).map(([k,r])=><RoleCard key={k} role={r} count={roles[k]||0} onChange={v=>updateRole(k,v)}/>)}
+            {Object.entries(ROLES).filter(([,r])=>r.team===roleTab).map(([k,r])=><RoleCard key={k} role={r} count={roles[k]||0} onChange={v=>handleUpdateRole(k,v)} disabled={!isHost}/>)}
           </div>
         </div>
       </div>
@@ -367,12 +457,12 @@ export default function MafiaGame(){
 
   /* ═══ GAME ═══ */
   if(screen==="game"){
-    const alive=gameState?.filter(p=>p.alive)||[];
-    const rd=ROLES[myRole];const mtc=TC[rd?.team||"village"];
+    const rd = ROLES[myRole];
+    const mtc = TC[rd?.team||"village"];
 
-    return <div style={page}><style>{CSS}</style><Grain/><Orbs variant={phase}/>
+    return <div style={page}><style>{CSS}</style><Grain/><Orbs variant={phase||"night"}/>
 
-      {showRoleReveal&&rd&&<div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(4,4,8,0.97)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",animation:"fadeIn 0.5s ease"}}>
+      {localShowReveal&&rd&&<div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(4,4,8,0.97)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",animation:"fadeIn 0.5s ease"}}>
         <div className="role-reveal-wrap" style={{animation:"roleFlip 1.2s cubic-bezier(0.22,1,0.36,1)",textAlign:"center"}}>
           <div className="role-reveal-icon" style={{filter:`drop-shadow(0 0 70px ${mtc.s}40)`}}>{rd.icon}</div>
           <div className="role-reveal-name" style={{color:mtc.p}}>{rd.name}</div>
@@ -399,29 +489,34 @@ export default function MafiaGame(){
             <h2 className="winner-title" style={{color:winner==="village"?"#6ee7b7":"#fda4af"}}>{winner==="village"?"Village Wins":"Mafia Wins"}</h2>
             <p style={{fontFamily:"var(--fm)",fontSize:11,color:"var(--td)",maxWidth:400,margin:"0 auto 48px",lineHeight:1.7}}>{winner==="village"?"Justice prevails. Every last mafioso has been found.":"The mafia has seized control. The village falls silent."}</p>
             <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center",marginBottom:52}}>
-              {gameState.map((p,i)=>{const tc=TC[ROLES[p.role]?.team||"village"];return <Glass key={i} style={{padding:"10px 16px",display:"flex",alignItems:"center",gap:10,opacity:p.alive?1:0.25}} glow={p.alive?tc.s:null}>
-                <span style={{fontSize:18}}>{ROLES[p.role]?.icon}</span>
-                <span style={{fontFamily:"var(--fd)",fontSize:12,color:"var(--t)"}}>{p.name}</span>
-                <span style={{fontFamily:"var(--fm)",fontSize:8,color:tc.p}}>{ROLES[p.role]?.name}</span>
+              {Object.entries(assignments).map(([id, a])=>{const tc=TC[ROLES[a.role]?.team||"village"];const pName=players.find(p=>p.id===id)?.name||"?";return <Glass key={id} style={{padding:"10px 16px",display:"flex",alignItems:"center",gap:10,opacity:a.alive?1:0.25}} glow={a.alive?tc.s:null}>
+                <span style={{fontSize:18}}>{ROLES[a.role]?.icon}</span>
+                <span style={{fontFamily:"var(--fd)",fontSize:12,color:"var(--t)"}}>{pName}</span>
+                <span style={{fontFamily:"var(--fm)",fontSize:8,color:tc.p}}>{ROLES[a.role]?.name}</span>
               </Glass>;})}
             </div>
-            <button onClick={()=>{setScreen("lobby");setGameState(null);setWinner(null);}} style={{...bigBtn,width:"auto",padding:"18px 56px",display:"inline-block"}}>Play Again</button>
+            {isHost&&<button onClick={handlePlayAgain} style={{...bigBtn,width:"auto",padding:"18px 56px",display:"inline-block"}}>Play Again</button>}
+            {!isHost&&<Glass style={{padding:14,textAlign:"center"}}><span style={{fontFamily:"var(--fm)",fontSize:10,color:"var(--td)"}}>Waiting for host...</span></Glass>}
           </div>
         ):(
           <div className="game-grid">
             <div>
               <Glass className="action-panel" style={{marginBottom:18}}>
                 <div className="action-title">{phase==="night"?"Choose your target":"Vote to eliminate"}</div>
-                <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",marginBottom:24}}>{phase==="night"?"Select a player to use your ability on":"The village must decide who to send away"}</div>
-                <div className="target-grid">
-                  {alive.filter(p=>p.name!==playerName).map((p,i)=>{const sel=selectedTarget===p.name;
-                    return <button key={p.id||i} onClick={()=>phase==="night"?setSelectedTarget(p.name):vote(p.name)}
+                <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",marginBottom:24}}>{
+                  actionSubmitted ? "Action submitted. Waiting for others..." :
+                  voteSubmitted ? "Vote submitted. Waiting for others..." :
+                  phase==="night"?"Select a player to use your ability on":"The village must decide who to send away"
+                }</div>
+                {!actionSubmitted && !voteSubmitted && <div className="target-grid">
+                  {alive.filter(p=>p.id!==userId).map((p,i)=>{const sel=selectedTarget===p.id;
+                    return <button key={p.id} onClick={()=>phase==="night"?setSelectedTarget(p.id):handleVote(p.id)}
                       style={{padding:"18px 8px",background:sel?"var(--redbg)":"var(--sf)",border:`1px solid ${sel?"rgba(251,113,133,0.25)":"var(--b)"}`,borderRadius:16,color:"var(--t)",textAlign:"center",animation:`scaleUp 0.3s ease ${i*0.04}s both`}}>
                       <div style={{display:"flex",justifyContent:"center",marginBottom:10}}><Avatar name={p.name} size={46} glow={sel?"var(--red)":null}/></div>
                       <div style={{fontFamily:"var(--fd)",fontSize:12}}>{p.name}</div>
                     </button>;})}
-                </div>
-                {phase==="night"&&selectedTarget&&<button onClick={nightAction} style={{marginTop:20,width:"100%",padding:"15px",background:"linear-gradient(135deg,#1e40af,#2563eb)",borderRadius:13,color:"#fff",fontFamily:"var(--fm)",fontSize:11,fontWeight:600,letterSpacing:0.5,boxShadow:"0 10px 32px rgba(37,99,235,0.25),inset 0 1px 0 rgba(255,255,255,0.1)"}}>Confirm · {selectedTarget}</button>}
+                </div>}
+                {phase==="night"&&selectedTarget&&!actionSubmitted&&<button onClick={handleNightAction} style={{marginTop:20,width:"100%",padding:"15px",background:"linear-gradient(135deg,#1e40af,#2563eb)",borderRadius:13,color:"#fff",fontFamily:"var(--fm)",fontSize:11,fontWeight:600,letterSpacing:0.5,boxShadow:"0 10px 32px rgba(37,99,235,0.25),inset 0 1px 0 rgba(255,255,255,0.1)"}}>Confirm · {alive.find(p=>p.id===selectedTarget)?.name}</button>}
               </Glass>
 
               <Glass style={{padding:20,maxHeight:210,overflowY:"auto"}}>
@@ -445,15 +540,15 @@ export default function MafiaGame(){
                 <div style={{flex:1,overflowY:"auto",marginBottom:10}}>
                   {chatMessages.length===0&&<div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",textAlign:"center",marginTop:44,opacity:0.35}}>No messages yet</div>}
                   {chatMessages.map((m,i)=><div key={i} style={{marginBottom:12}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontFamily:"var(--fm)",fontSize:9,fontWeight:600,color:m.sender===playerName?"#93c5fd":"var(--td)"}}>{m.sender}</span><span style={{fontFamily:"var(--fm)",fontSize:7,color:"var(--tm)"}}>{m.time}</span></div>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontFamily:"var(--fm)",fontSize:9,fontWeight:600,color:m.senderId===userId?"#93c5fd":"var(--td)"}}>{m.sender}</span><span style={{fontFamily:"var(--fm)",fontSize:7,color:"var(--tm)"}}>{m.time}</span></div>
                     <div style={{fontFamily:"var(--fd)",fontSize:13,color:"var(--t)",marginTop:3,lineHeight:1.5}}>{m.text}</div>
                   </div>)}
                   <div ref={chatEndRef}/>
                 </div>
                 <div style={{display:"flex",gap:6}}>
-                  <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder="Type..." disabled={phase==="night"&&rd?.team!=="mafia"}
+                  <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSendChat()} placeholder="Type..."
                     style={{flex:1,padding:"11px 14px",background:"rgba(255,255,255,0.025)",border:"1px solid var(--b)",borderRadius:11,color:"var(--t)",fontFamily:"var(--fm)",fontSize:10}}/>
-                  <button onClick={sendChat} style={{padding:"11px 16px",background:"var(--s)",border:"1px solid var(--b)",borderRadius:11,color:"var(--t)",fontSize:13}}>↵</button>
+                  <button onClick={handleSendChat} style={{padding:"11px 16px",background:"var(--s)",border:"1px solid var(--b)",borderRadius:11,color:"var(--t)",fontSize:13}}>↵</button>
                 </div>
               </Glass>
             </div>
