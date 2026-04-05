@@ -63,32 +63,50 @@ const CSS = `
 input:focus,textarea:focus{outline:none;border-color:var(--bh) !important}
 button{cursor:pointer;border:none;background:none;font-family:var(--fm);transition:all 0.25s cubic-bezier(0.22,1,0.36,1)}
 button:hover{transform:translateY(-1px)}button:active{transform:translateY(0) scale(0.97)}
+html,body{overflow-x:hidden;width:100%}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:3px}
 .wrap{position:relative;z-index:1;max-width:940px;margin:0 auto;padding:28px 28px 80px}
 .lobby-grid{display:grid;grid-template-columns:320px 1fr;gap:32px}
 .game-grid{display:grid;grid-template-columns:1fr 280px;gap:22px}
 .home-title{font-family:var(--fd);font-size:72px;font-weight:400;color:var(--t);letter-spacing:2px;line-height:1}
 .home-icon{font-size:80px;margin-bottom:16px}
-.room-code{font-family:var(--fd);font-size:40px;color:var(--red);letter-spacing:5px}
+.home-sub{font-family:var(--fm);font-size:10px;color:var(--td);letter-spacing:6px;text-transform:uppercase;margin-top:14px}
+.room-code{font-family:var(--fd);font-size:40px;color:var(--red);letter-spacing:5px;word-break:break-all}
+.lobby-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:36px;gap:12px;flex-wrap:wrap}
 .role-reveal-icon{font-size:110px;margin-bottom:24px}
 .role-reveal-name{font-family:var(--fd);font-size:56px;margin-bottom:12px}
+.role-reveal-wrap{padding:20px}
+.phase-bar{padding:18px 26px;margin-bottom:26px;display:flex;justify-content:space-between;align-items:center;gap:12px}
 .phase-title{font-family:var(--fd);font-size:26px;margin-top:4px}
 .winner-icon{font-size:120px;margin-bottom:28px}
 .winner-title{font-family:var(--fd);font-size:60px;margin-bottom:16px;line-height:1}
 .target-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px}
+.action-panel{padding:26px}
+.action-title{font-family:var(--fd);font-size:22px;color:var(--t);margin-bottom:4px}
+.player-count-num{font-family:var(--fd);font-size:56px;color:var(--t);line-height:1}
+.preset-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
 @media(max-width:768px){
-  .wrap{padding:16px 14px 60px}
-  .lobby-grid{grid-template-columns:1fr;gap:20px}
-  .game-grid{grid-template-columns:1fr;gap:16px}
-  .home-title{font-size:48px}
-  .home-icon{font-size:56px}
-  .room-code{font-size:24px;letter-spacing:3px}
-  .role-reveal-icon{font-size:72px;margin-bottom:16px}
-  .role-reveal-name{font-size:36px}
-  .phase-title{font-size:18px}
-  .winner-icon{font-size:80px;margin-bottom:20px}
-  .winner-title{font-size:40px}
-  .target-grid{grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:6px}
+  .wrap{padding:16px 12px 40px}
+  .lobby-grid{grid-template-columns:1fr !important;gap:20px}
+  .game-grid{grid-template-columns:1fr !important;gap:16px}
+  .home-title{font-size:42px;letter-spacing:1px}
+  .home-icon{font-size:52px;margin-bottom:10px}
+  .home-sub{font-size:8px;letter-spacing:4px}
+  .room-code{font-size:22px;letter-spacing:2px}
+  .lobby-header{margin-bottom:20px}
+  .role-reveal-icon{font-size:64px;margin-bottom:14px}
+  .role-reveal-name{font-size:32px;margin-bottom:8px}
+  .role-reveal-wrap{padding:16px}
+  .phase-bar{padding:14px 16px;margin-bottom:16px;flex-direction:column;align-items:flex-start;gap:8px}
+  .phase-title{font-size:16px}
+  .winner-icon{font-size:64px;margin-bottom:16px}
+  .winner-title{font-size:34px}
+  .target-grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr)) !important;gap:6px}
+  .action-panel{padding:16px}
+  .action-title{font-size:18px}
+  .player-count-num{font-size:40px}
+  .preset-row{gap:4px}
+  .preset-row button{font-size:9px !important;padding:8px 6px !important}
 }
 `;
 
@@ -111,8 +129,8 @@ function Orbs({variant}){
   </div>;
 }
 
-function Glass({children,style,glow,onClick}){
-  return <div onClick={onClick} style={{background:"rgba(255,255,255,0.02)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",border:"1px solid var(--b)",borderRadius:18,
+function Glass({children,style,glow,onClick,className}){
+  return <div className={className} onClick={onClick} style={{background:"rgba(255,255,255,0.02)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",border:"1px solid var(--b)",borderRadius:18,
     boxShadow:glow?`0 0 40px ${glow}0d,inset 0 1px 0 rgba(255,255,255,0.05)`:"inset 0 1px 0 rgba(255,255,255,0.04),0 4px 24px rgba(0,0,0,0.15)",
     transition:"all 0.3s ease",...style}}>{children}</div>;
 }
@@ -246,7 +264,7 @@ export default function MafiaGame(){
       <div style={{textAlign:"center",marginBottom:60,animation:"fadeUp 1s ease"}}>
         <div className="home-icon" style={{animation:"float 5s ease infinite",filter:"drop-shadow(0 0 50px rgba(251,113,133,0.2))"}}>🎭</div>
         <h1 className="home-title">Mafia</h1>
-        <p style={{fontFamily:"var(--fm)",fontSize:10,color:"var(--td)",letterSpacing:6,textTransform:"uppercase",marginTop:14}}>Deception · Strategy · Survival</p>
+        <p className="home-sub">Deception · Strategy · Survival</p>
       </div>
       <div style={{width:"100%",maxWidth:380,animation:"fadeUp 1s ease 0.15s both"}}>
         <input type="text" placeholder="Enter your name" value={playerName} onChange={e=>setPlayerName(e.target.value)} style={{...inp,marginBottom:18,textAlign:"center",fontSize:15}}/>
@@ -267,12 +285,12 @@ export default function MafiaGame(){
   /* ═══ LOBBY ═══ */
   if(screen==="lobby") return <div style={page}><style>{CSS}</style><Grain/><Orbs variant="lobby"/>
     <div className="wrap">
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:36,animation:"fadeUp 0.5s ease"}}>
+      <div className="lobby-header" style={{animation:"fadeUp 0.5s ease"}}>
         <div>
           <div style={{fontFamily:"var(--fm)",fontSize:8,color:"var(--tm)",letterSpacing:5,marginBottom:6}}>ROOM CODE</div>
           <div className="room-code">{roomCode}</div>
         </div>
-        <button onClick={()=>setScreen("home")} style={{padding:"10px 22px",background:"var(--s)",border:"1px solid var(--b)",borderRadius:10,color:"var(--td)",fontSize:11}}>← Leave</button>
+        <button onClick={()=>setScreen("home")} style={{padding:"10px 22px",background:"var(--s)",border:"1px solid var(--b)",borderRadius:10,color:"var(--td)",fontSize:11,flexShrink:0}}>← Leave</button>
       </div>
 
       <div className="lobby-grid">
@@ -306,7 +324,7 @@ export default function MafiaGame(){
             <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:24,marginBottom:16}}>
               <button onClick={()=>updateMaxPlayers(maxPlayers-1)} style={{width:44,height:44,borderRadius:13,border:"1px solid var(--b)",background:"var(--sf)",color:"var(--ts)",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
               <div style={{textAlign:"center",minWidth:70}}>
-                <div style={{fontFamily:"var(--fd)",fontSize:56,color:"var(--t)",lineHeight:1}}>{maxPlayers}</div>
+                <div className="player-count-num">{maxPlayers}</div>
               </div>
               <button onClick={()=>updateMaxPlayers(maxPlayers+1)} style={{width:44,height:44,borderRadius:13,border:"1px solid rgba(251,113,133,0.2)",background:"var(--redbg)",color:"var(--red)",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
             </div>
@@ -321,7 +339,7 @@ export default function MafiaGame(){
           </Glass>
 
           {/* Presets */}
-          <div style={{display:"flex",gap:6,marginBottom:16}}>
+          <div className="preset-row">
             {Object.entries(PRESETS).map(([k,p])=>{const t=Object.values(p.roles).reduce((a,b)=>a+b,0);return <button key={k} onClick={()=>{setRoles({...Object.fromEntries(Object.keys(ROLES).map(k=>[k,0])),...p.roles});setMaxPlayers(t);}}
               style={{flex:1,padding:"11px 8px",background:"var(--s)",border:"1px solid var(--b)",borderRadius:12,color:"var(--ts)",fontSize:10,fontWeight:500}}>{p.name}</button>;})}
           </div>
@@ -351,16 +369,16 @@ export default function MafiaGame(){
     return <div style={page}><style>{CSS}</style><Grain/><Orbs variant={phase}/>
 
       {showRoleReveal&&rd&&<div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(4,4,8,0.97)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",animation:"fadeIn 0.5s ease"}}>
-        <div style={{animation:"roleFlip 1.2s cubic-bezier(0.22,1,0.36,1)",textAlign:"center"}}>
+        <div className="role-reveal-wrap" style={{animation:"roleFlip 1.2s cubic-bezier(0.22,1,0.36,1)",textAlign:"center"}}>
           <div className="role-reveal-icon" style={{filter:`drop-shadow(0 0 70px ${mtc.s}40)`}}>{rd.icon}</div>
           <div className="role-reveal-name" style={{color:mtc.p}}>{rd.name}</div>
-          <div style={{fontFamily:"var(--fm)",fontSize:11,color:"var(--td)",maxWidth:360,lineHeight:1.8,margin:"0 auto"}}>{rd.description}</div>
+          <div style={{fontFamily:"var(--fm)",fontSize:11,color:"var(--td)",maxWidth:360,lineHeight:1.8,margin:"0 auto",padding:"0 16px"}}>{rd.description}</div>
           <div style={{fontFamily:"var(--fm)",fontSize:8,color:mtc.s,letterSpacing:5,marginTop:28,textTransform:"uppercase"}}>Team {rd.team}</div>
         </div>
       </div>}
 
       <div className="wrap">
-        <Glass style={{padding:"18px 26px",marginBottom:26,display:"flex",justifyContent:"space-between",alignItems:"center"}} glow={phase==="night"?"#6366f1":"#eab308"}>
+        <Glass className="phase-bar" glow={phase==="night"?"#6366f1":"#eab308"}>
           <div>
             <div style={{fontFamily:"var(--fm)",fontSize:8,color:"var(--tm)",letterSpacing:5}}>{phase==="night"?"🌙 NIGHT":"☀️ DAY"} {day}</div>
             <div className="phase-title" style={{color:phase==="night"?"#a5b4fc":"#fde68a"}}>{phase==="night"?"The village sleeps...":"The village awakens"}</div>
@@ -388,8 +406,8 @@ export default function MafiaGame(){
         ):(
           <div className="game-grid">
             <div>
-              <Glass style={{padding:26,marginBottom:18}}>
-                <div style={{fontFamily:"var(--fd)",fontSize:22,color:"var(--t)",marginBottom:4}}>{phase==="night"?"Choose your target":"Vote to eliminate"}</div>
+              <Glass className="action-panel" style={{marginBottom:18}}>
+                <div className="action-title">{phase==="night"?"Choose your target":"Vote to eliminate"}</div>
                 <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",marginBottom:24}}>{phase==="night"?"Select a player to use your ability on":"The village must decide who to send away"}</div>
                 <div className="target-grid">
                   {alive.filter(p=>p.name!==playerName).map((p,i)=>{const sel=selectedTarget===p.name;
