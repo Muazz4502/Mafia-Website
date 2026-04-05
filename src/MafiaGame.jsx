@@ -64,6 +64,32 @@ input:focus,textarea:focus{outline:none;border-color:var(--bh) !important}
 button{cursor:pointer;border:none;background:none;font-family:var(--fm);transition:all 0.25s cubic-bezier(0.22,1,0.36,1)}
 button:hover{transform:translateY(-1px)}button:active{transform:translateY(0) scale(0.97)}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:3px}
+.wrap{position:relative;z-index:1;max-width:940px;margin:0 auto;padding:28px 28px 80px}
+.lobby-grid{display:grid;grid-template-columns:320px 1fr;gap:32px}
+.game-grid{display:grid;grid-template-columns:1fr 280px;gap:22px}
+.home-title{font-family:var(--fd);font-size:72px;font-weight:400;color:var(--t);letter-spacing:2px;line-height:1}
+.home-icon{font-size:80px;margin-bottom:16px}
+.room-code{font-family:var(--fd);font-size:40px;color:var(--red);letter-spacing:5px}
+.role-reveal-icon{font-size:110px;margin-bottom:24px}
+.role-reveal-name{font-family:var(--fd);font-size:56px;margin-bottom:12px}
+.phase-title{font-family:var(--fd);font-size:26px;margin-top:4px}
+.winner-icon{font-size:120px;margin-bottom:28px}
+.winner-title{font-family:var(--fd);font-size:60px;margin-bottom:16px;line-height:1}
+.target-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px}
+@media(max-width:768px){
+  .wrap{padding:16px 14px 60px}
+  .lobby-grid{grid-template-columns:1fr;gap:20px}
+  .game-grid{grid-template-columns:1fr;gap:16px}
+  .home-title{font-size:48px}
+  .home-icon{font-size:56px}
+  .room-code{font-size:24px;letter-spacing:3px}
+  .role-reveal-icon{font-size:72px;margin-bottom:16px}
+  .role-reveal-name{font-size:36px}
+  .phase-title{font-size:18px}
+  .winner-icon{font-size:80px;margin-bottom:20px}
+  .winner-title{font-size:40px}
+  .target-grid{grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:6px}
+}
 `;
 
 /* ─── SHARED COMPONENTS ─── */
@@ -211,16 +237,15 @@ export default function MafiaGame(){
   const sendChat=()=>{if(!chatInput.trim())return;setChatMessages(prev=>[...prev,{sender:playerName,text:chatInput,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}]);setChatInput("");};
 
   const page={minHeight:"100vh",background:"var(--bg)",color:"var(--t)",fontFamily:"var(--fm)",position:"relative"};
-  const wrap={position:"relative",zIndex:1,maxWidth:940,margin:"0 auto",padding:"28px 28px 80px"};
   const inp={width:"100%",padding:"15px 20px",background:"rgba(255,255,255,0.03)",border:"1px solid var(--b)",borderRadius:14,color:"var(--t)",fontFamily:"var(--fm)",fontSize:13,transition:"border 0.3s"};
   const bigBtn={padding:"18px",background:"linear-gradient(135deg,#be123c,#9f1239)",borderRadius:14,color:"#fff",fontFamily:"var(--fd)",fontSize:20,boxShadow:"0 12px 40px rgba(190,18,60,0.25),inset 0 1px 0 rgba(255,255,255,0.1)",width:"100%"};
 
   /* ═══ HOME ═══ */
   if(screen==="home") return <div style={page}><style>{CSS}</style><Grain/><Orbs variant="home"/>
-    <div style={{...wrap,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh"}}>
+    <div className="wrap" style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh"}}>
       <div style={{textAlign:"center",marginBottom:60,animation:"fadeUp 1s ease"}}>
-        <div style={{fontSize:80,marginBottom:16,animation:"float 5s ease infinite",filter:"drop-shadow(0 0 50px rgba(251,113,133,0.2))"}}>🎭</div>
-        <h1 style={{fontFamily:"var(--fd)",fontSize:72,fontWeight:400,color:"var(--t)",letterSpacing:2,lineHeight:1}}>Mafia</h1>
+        <div className="home-icon" style={{animation:"float 5s ease infinite",filter:"drop-shadow(0 0 50px rgba(251,113,133,0.2))"}}>🎭</div>
+        <h1 className="home-title">Mafia</h1>
         <p style={{fontFamily:"var(--fm)",fontSize:10,color:"var(--td)",letterSpacing:6,textTransform:"uppercase",marginTop:14}}>Deception · Strategy · Survival</p>
       </div>
       <div style={{width:"100%",maxWidth:380,animation:"fadeUp 1s ease 0.15s both"}}>
@@ -241,16 +266,16 @@ export default function MafiaGame(){
 
   /* ═══ LOBBY ═══ */
   if(screen==="lobby") return <div style={page}><style>{CSS}</style><Grain/><Orbs variant="lobby"/>
-    <div style={wrap}>
+    <div className="wrap">
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:36,animation:"fadeUp 0.5s ease"}}>
         <div>
           <div style={{fontFamily:"var(--fm)",fontSize:8,color:"var(--tm)",letterSpacing:5,marginBottom:6}}>ROOM CODE</div>
-          <div style={{fontFamily:"var(--fd)",fontSize:40,color:"var(--red)",letterSpacing:5}}>{roomCode}</div>
+          <div className="room-code">{roomCode}</div>
         </div>
         <button onClick={()=>setScreen("home")} style={{padding:"10px 22px",background:"var(--s)",border:"1px solid var(--b)",borderRadius:10,color:"var(--td)",fontSize:11}}>← Leave</button>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"320px 1fr",gap:32}}>
+      <div className="lobby-grid">
         {/* Players */}
         <div>
           <div style={{display:"flex",alignItems:"baseline",gap:10,marginBottom:18}}>
@@ -327,18 +352,18 @@ export default function MafiaGame(){
 
       {showRoleReveal&&rd&&<div style={{position:"fixed",inset:0,zIndex:100,background:"rgba(4,4,8,0.97)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",animation:"fadeIn 0.5s ease"}}>
         <div style={{animation:"roleFlip 1.2s cubic-bezier(0.22,1,0.36,1)",textAlign:"center"}}>
-          <div style={{fontSize:110,marginBottom:24,filter:`drop-shadow(0 0 70px ${mtc.s}40)`}}>{rd.icon}</div>
-          <div style={{fontFamily:"var(--fd)",fontSize:56,color:mtc.p,marginBottom:12}}>{rd.name}</div>
+          <div className="role-reveal-icon" style={{filter:`drop-shadow(0 0 70px ${mtc.s}40)`}}>{rd.icon}</div>
+          <div className="role-reveal-name" style={{color:mtc.p}}>{rd.name}</div>
           <div style={{fontFamily:"var(--fm)",fontSize:11,color:"var(--td)",maxWidth:360,lineHeight:1.8,margin:"0 auto"}}>{rd.description}</div>
           <div style={{fontFamily:"var(--fm)",fontSize:8,color:mtc.s,letterSpacing:5,marginTop:28,textTransform:"uppercase"}}>Team {rd.team}</div>
         </div>
       </div>}
 
-      <div style={wrap}>
+      <div className="wrap">
         <Glass style={{padding:"18px 26px",marginBottom:26,display:"flex",justifyContent:"space-between",alignItems:"center"}} glow={phase==="night"?"#6366f1":"#eab308"}>
           <div>
             <div style={{fontFamily:"var(--fm)",fontSize:8,color:"var(--tm)",letterSpacing:5}}>{phase==="night"?"🌙 NIGHT":"☀️ DAY"} {day}</div>
-            <div style={{fontFamily:"var(--fd)",fontSize:26,color:phase==="night"?"#a5b4fc":"#fde68a",marginTop:4}}>{phase==="night"?"The village sleeps...":"The village awakens"}</div>
+            <div className="phase-title" style={{color:phase==="night"?"#a5b4fc":"#fde68a"}}>{phase==="night"?"The village sleeps...":"The village awakens"}</div>
           </div>
           <div style={{textAlign:"right"}}>
             <div style={{fontFamily:"var(--fm)",fontSize:11,color:"var(--td)",display:"flex",alignItems:"center",gap:8,justifyContent:"flex-end"}}><span style={{fontSize:22}}>{rd?.icon}</span>{rd?.name}</div>
@@ -348,8 +373,8 @@ export default function MafiaGame(){
 
         {winner?(
           <div style={{textAlign:"center",padding:"60px 20px",animation:"fadeUp 0.8s ease"}}>
-            <div style={{fontSize:120,marginBottom:28,filter:`drop-shadow(0 0 80px ${winner==="village"?"rgba(52,211,153,0.35)":"rgba(251,113,133,0.35)"})`}}>{winner==="village"?"🧑‍🌾":"🎭"}</div>
-            <h2 style={{fontFamily:"var(--fd)",fontSize:60,color:winner==="village"?"#6ee7b7":"#fda4af",marginBottom:16,lineHeight:1}}>{winner==="village"?"Village Wins":"Mafia Wins"}</h2>
+            <div className="winner-icon" style={{filter:`drop-shadow(0 0 80px ${winner==="village"?"rgba(52,211,153,0.35)":"rgba(251,113,133,0.35)"})`}}>{winner==="village"?"🧑‍🌾":"🎭"}</div>
+            <h2 className="winner-title" style={{color:winner==="village"?"#6ee7b7":"#fda4af"}}>{winner==="village"?"Village Wins":"Mafia Wins"}</h2>
             <p style={{fontFamily:"var(--fm)",fontSize:11,color:"var(--td)",maxWidth:400,margin:"0 auto 48px",lineHeight:1.7}}>{winner==="village"?"Justice prevails. Every last mafioso has been found.":"The mafia has seized control. The village falls silent."}</p>
             <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center",marginBottom:52}}>
               {gameState.map((p,i)=>{const tc=TC[ROLES[p.role]?.team||"village"];return <Glass key={i} style={{padding:"10px 16px",display:"flex",alignItems:"center",gap:10,opacity:p.alive?1:0.25}} glow={p.alive?tc.s:null}>
@@ -361,12 +386,12 @@ export default function MafiaGame(){
             <button onClick={()=>{setScreen("lobby");setGameState(null);setWinner(null);}} style={{...bigBtn,width:"auto",padding:"18px 56px",display:"inline-block"}}>Play Again</button>
           </div>
         ):(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:22}}>
+          <div className="game-grid">
             <div>
               <Glass style={{padding:26,marginBottom:18}}>
                 <div style={{fontFamily:"var(--fd)",fontSize:22,color:"var(--t)",marginBottom:4}}>{phase==="night"?"Choose your target":"Vote to eliminate"}</div>
                 <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--tm)",marginBottom:24}}>{phase==="night"?"Select a player to use your ability on":"The village must decide who to send away"}</div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(108px,1fr))",gap:8}}>
+                <div className="target-grid">
                   {alive.filter(p=>p.name!==playerName).map((p,i)=>{const sel=selectedTarget===p.name;
                     return <button key={p.id||i} onClick={()=>phase==="night"?setSelectedTarget(p.name):vote(p.name)}
                       style={{padding:"18px 8px",background:sel?"var(--redbg)":"var(--sf)",border:`1px solid ${sel?"rgba(251,113,133,0.25)":"var(--b)"}`,borderRadius:16,color:"var(--t)",textAlign:"center",animation:`scaleUp 0.3s ease ${i*0.04}s both`}}>
