@@ -257,7 +257,7 @@ export default function MafiaGame(){
           <div style={{flex:1,height:1,background:"linear-gradient(90deg,transparent,var(--b),transparent)"}}/>
         </div>
         <div style={{display:"flex",gap:8}}>
-          <input type="text" placeholder="CODE" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} maxLength={6} style={{...inp,textAlign:"center",letterSpacing:6,fontSize:16,fontWeight:600}}/>
+          <input type="text" placeholder="DARK-WOLF-42" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} maxLength={15} style={{...inp,textAlign:"center",letterSpacing:2,fontSize:14,fontWeight:600}}/>
           <button onClick={joinRoom} style={{padding:"15px 28px",background:"var(--s)",border:"1px solid var(--bh)",borderRadius:14,color:"var(--t)",fontSize:12,fontWeight:500}}>Join</button>
         </div>
       </div>
