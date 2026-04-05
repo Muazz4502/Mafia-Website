@@ -77,7 +77,7 @@ html,body,#root{overflow-x:hidden;width:100%;max-width:100vw;position:relative}
 .player-count-num{font-family:var(--fd);font-size:56px;color:var(--t);line-height:1}
 .preset-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
 .glass-pad{padding:22px 28px}
-.role-card{overflow:hidden}
+.role-card{overflow:visible}
 .role-card-row{display:flex;align-items:center;gap:10px}
 .role-card-desc{font-family:var(--fm);font-size:9px;color:var(--td);line-height:1.6;margin-top:6px;padding-left:44px}
 .error-msg{font-family:var(--fm);font-size:10px;color:#fb7185;text-align:center;padding:8px;animation:fadeIn 0.3s ease}
@@ -447,7 +447,7 @@ export default function MafiaGame(){
               style={{flex:1,padding:"10px",background:roleTab===tab?tc.bg:"transparent",border:`1px solid ${roleTab===tab?tc.bdr:"var(--b)"}`,borderRadius:11,color:roleTab===tab?tc.p:"var(--tm)",fontSize:9,letterSpacing:2,textTransform:"uppercase",fontWeight:roleTab===tab?600:400}}>{tab}</button>;})}
           </div>
 
-          <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:320,overflowY:"auto",paddingRight:4}}>
+          <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:450,overflowY:"auto",paddingRight:4}}>
             {Object.entries(ROLES).filter(([,r])=>r.team===roleTab).map(([k,r])=><RoleCard key={k} role={r} count={roles[k]||0} onChange={v=>handleUpdateRole(k,v)} disabled={!isHost}/>)}
           </div>
         </div>
