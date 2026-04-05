@@ -86,14 +86,9 @@ html,body,#root{overflow-x:hidden;width:100%;max-width:100vw;position:relative}
 .player-count-num{font-family:var(--fd);font-size:56px;color:var(--t);line-height:1}
 .preset-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
 .role-card{overflow:hidden}
-.role-card-top{display:flex;align-items:center;gap:10px}
-.role-card-desc{font-family:var(--fm);font-size:9px;color:var(--td);line-height:1.4;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.role-card-controls{display:flex;align-items:center;gap:3px;flex-shrink:0}
 .glass-pad{padding:22px 28px}
 @media(max-width:768px){
-  .role-card-top{flex-wrap:wrap;gap:8px}
-  .role-card-desc{white-space:normal;font-size:8px;line-height:1.5;-webkit-line-clamp:2;display:-webkit-box;-webkit-box-orient:vertical}
-  .role-card-controls{margin-left:auto}
+  .role-card .role-desc-text{font-size:8px;padding-left:0 !important}
   .glass-pad{padding:16px 14px}
   .wrap{padding:16px 12px 40px}
   .lobby-grid{grid-template-columns:1fr !important;gap:20px}
@@ -183,22 +178,20 @@ function BalanceMeter({roles}){
 
 function RoleCard({role,count,onChange}){
   const tc=TC[role.team];
-  return <Glass className="role-card" style={{padding:"13px 16px",opacity:count>0?1:0.4,borderColor:count>0?tc.bdr:"var(--b)"}} glow={count>0?tc.s:null}>
-    <div className="role-card-top">
-      <div style={{width:36,height:36,borderRadius:10,background:count>0?tc.bg:"var(--sf)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,transition:"all 0.3s",flexShrink:0}}>{role.icon}</div>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-          <span style={{fontFamily:"var(--fd)",fontSize:13,color:"var(--t)"}}>{role.name}</span>
-          <span style={{fontFamily:"var(--fm)",fontSize:7,color:tc.s,letterSpacing:2,textTransform:"uppercase"}}>{role.team}</span>
-        </div>
-        <div className="role-card-desc">{role.description}</div>
+  return <Glass className="role-card" style={{padding:"12px 14px",opacity:count>0?1:0.4,borderColor:count>0?tc.bdr:"var(--b)"}} glow={count>0?tc.s:null}>
+    <div style={{display:"flex",alignItems:"center",gap:10}}>
+      <div style={{width:34,height:34,borderRadius:10,background:count>0?tc.bg:"var(--sf)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{role.icon}</div>
+      <div style={{flex:1,minWidth:0,display:"flex",alignItems:"center",gap:6}}>
+        <span style={{fontFamily:"var(--fd)",fontSize:13,color:"var(--t)",whiteSpace:"nowrap"}}>{role.name}</span>
+        <span style={{fontFamily:"var(--fm)",fontSize:7,color:tc.s,letterSpacing:1,textTransform:"uppercase",flexShrink:0}}>{role.team}</span>
       </div>
-      <div className="role-card-controls">
+      <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
         <button onClick={()=>onChange(Math.max(0,count-1))} style={{width:28,height:28,borderRadius:8,border:"1px solid var(--b)",background:"var(--sf)",color:"var(--ts)",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-        <span style={{fontFamily:"var(--fm)",fontSize:15,color:"var(--t)",width:24,textAlign:"center",fontWeight:600}}>{count}</span>
+        <span style={{fontFamily:"var(--fm)",fontSize:15,color:"var(--t)",width:22,textAlign:"center",fontWeight:600}}>{count}</span>
         <button onClick={()=>onChange(count+1)} style={{width:28,height:28,borderRadius:8,border:`1px solid ${tc.bdr}`,background:tc.bg,color:tc.s,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
       </div>
     </div>
+    <div style={{fontFamily:"var(--fm)",fontSize:9,color:"var(--td)",lineHeight:1.5,marginTop:6,paddingLeft:44}}>{role.description}</div>
   </Glass>;
 }
 
