@@ -3,14 +3,14 @@ import { getDatabase, ref, set, get, push, onValue, onDisconnect, remove, update
 import { getAuth, signInAnonymously } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBOvq0uk8BAFLAMdxkxS9c4HT_auQskIgo",
-  authDomain: "mafia-game-76a11.firebaseapp.com",
-  databaseURL: "https://mafia-game-76a11-default-rtdb.firebaseio.com",
-  projectId: "mafia-game-76a11",
-  storageBucket: "mafia-game-76a11.firebasestorage.app",
-  messagingSenderId: "54653436715",
-  appId: "1:54653436715:web:96c73590c206420b927b6e",
-  measurementId: "G-BG79FEC1V5"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
